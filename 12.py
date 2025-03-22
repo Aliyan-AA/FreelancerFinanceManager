@@ -1,11 +1,11 @@
 #################################################################
-# Hostel Financial Management Dashboard with Balance Sheet &    #
-# Rent Collection Forecasting                                   #
-# Developed using Streamlit’s Built-in UI Components              #
-# This application enables hostel owners to analyze financial    #
-# data, manage hostelites, track revenue and expenses, view a      #
-# dynamic balance sheet, forecast rent collection, and plan        #
-# for future enhancements.                                         #
+# Hostel Financial Management Dashboard with Balance Sheet &    
+# Rent Collection Forecasting                                  
+# Developed using Streamlit’s Built-in UI Components              
+# This application enables hostel owners to analyze financial    
+# data, manage hostelites, track revenue and expenses, view a      
+# dynamic balance sheet, forecast rent collection, and plan        
+# for future enhancements.                                         
 #################################################################
 
 import streamlit as st
@@ -26,9 +26,9 @@ st.markdown("""
         body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .main-title { font-size: 42px; font-weight: 700; color: #003366; text-align: center; margin-bottom: 20px; }
         .sidebar .sidebar-content { background-color: #004b8d; color: white; }
-        .metric-box { background: #fff; padding: 20px; border-radius: 10px; text-align: center;
+        .metric-box { background: #fff; padding: 20px; border-radius: 10px; text-align: center; 
                       box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .stButton>button { background-color: #0051a2; color: white; border-radius: 8px;
+        .stButton>button { background-color: #0051a2; color: white; border-radius: 8px; 
                            padding: 8px 16px; font-size: 16px; border: none; }
         .stTextInput label, .stNumberInput label, .stDateInput label { font-weight: bold; color: #003366; }
         .dataframe th, .dataframe td { padding: 8px; }
@@ -49,7 +49,7 @@ if 'hostelites' not in st.session_state:
 if 'tasks' not in st.session_state:
     st.session_state.tasks = []  # List of tasks: {Task, Assigned To, Due Date}
 if 'rent_history' not in st.session_state:
-    st.session_state.rent_history = []  # Historical rent collection data for forecasting
+    st.session_state.rent_history = pd.DataFrame()  # DataFrame for historical rent data
 
 # ---------------------------------------------------------------
 # UTILITY FUNCTIONS
@@ -106,9 +106,8 @@ def generate_financial_report():
     return df_rev, df_exp
 
 def perform_rent_forecast():
-    # Use rent history for forecasting; here we simulate with dummy data if no data exists.
-    if not st.session_state.rent_history:
-        # Generate dummy data for 12 months
+    # Check if rent_history is a DataFrame and if it is empty
+    if not isinstance(st.session_state.rent_history, pd.DataFrame) or st.session_state.rent_history.empty:
         months = np.arange(1, 13).reshape(-1, 1)
         rents = np.random.randint(50000, 80000, size=12)
         st.session_state.rent_history = pd.DataFrame({"Month": months.flatten(), "Rent": rents})
@@ -144,7 +143,6 @@ if page == "Dashboard":
     total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
     total_exp = sum([entry["Amount"] for entry in st.session_state.expenses])
     overall_balance = total_rev - total_exp
-
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(f"<div class='metric-box'><h4>Total Revenue</h4><h2>PKR {total_rev:,.2f}</h2></div>", unsafe_allow_html=True)
@@ -152,7 +150,6 @@ if page == "Dashboard":
         st.markdown(f"<div class='metric-box'><h4>Total Expenses</h4><h2>PKR {total_exp:,.2f}</h2></div>", unsafe_allow_html=True)
     with col3:
         st.markdown(f"<div class='metric-box'><h4>Overall Balance</h4><h2>PKR {overall_balance:,.2f}</h2></div>", unsafe_allow_html=True)
-    
     st.markdown("<hr>", unsafe_allow_html=True)
     st.subheader("Monthly Trends")
     dummy_data = pd.DataFrame({
@@ -221,18 +218,17 @@ elif page == "Balance Sheet":
 # ---------------------------------------------------------------
 elif page == "Rent Forecasting":
     st.header("Rent Collection Forecasting")
-    st.write("This section forecasts future rent collection based on historical data.")
+    st.write("Forecast future rent collection based on historical data.")
     if st.button("Generate Dummy Rent History"):
-        # Generate dummy historical data for 12 months
         months = np.arange(1, 13)
         rents = np.random.randint(50000, 80000, size=12)
         st.session_state.rent_history = pd.DataFrame({"Month": months, "Rent": rents})
         st.success("Dummy rent history generated!")
-    if st.session_state.rent_history is not None and not st.session_state.rent_history.empty:
+    if isinstance(st.session_state.rent_history, pd.DataFrame) and not st.session_state.rent_history.empty:
         st.write("### Historical Rent Data")
         st.dataframe(st.session_state.rent_history)
         forecast_df = perform_rent_forecast()
-        st.write("### Forecasted Rent Collection for Future Months")
+        st.write("### Forecasted Rent Collection")
         st.dataframe(forecast_df)
         fig_forecast = px.line(forecast_df, x="Month", y="Forecasted Rent", markers=True, title="Rent Forecast")
         st.plotly_chart(fig_forecast, use_container_width=True)
@@ -291,7 +287,7 @@ elif page == "Task Scheduling":
         st.info("No tasks scheduled yet.")
 
 # ---------------------------------------------------------------
-# FOOTER
+# FOOTER SECTION
 # ---------------------------------------------------------------
 st.sidebar.markdown("---")
 st.sidebar.markdown("<p style='text-align: center;'>Developed with ❤️ by Aliyan Ahmad</p>", unsafe_allow_html=True)
@@ -300,51 +296,22 @@ st.sidebar.write("")
 st.sidebar.write("")
 st.sidebar.write("")
 
-# Print a single block of placeholder lines for future enhancements
 st.write("Placeholder: Future features and enhancements can be implemented here. (This area is reserved for expansion.)")
 
 # ---------------------------------------------------------------
 # ADDITIONAL BLANK LINES TO APPROXIMATE 500 LINES
 # ---------------------------------------------------------------
-# (Below are extra lines and comments to extend the code base for future development)
-# --------------------------------------------------------------------------------
+# Future enhancements:
 # 1. Integration with external APIs for real-time financial data.
 # 2. Advanced AI-based revenue forecasting.
 # 3. User authentication and role management.
-# 4. Multi-hostel management and aggregation of financial data.
-# 5. Mobile-friendly responsive design improvements.
-# 6. Detailed audit logs for all financial transactions.
-# 7. Custom reporting templates for stakeholders.
+# 4. Multi-hostel management.
+# 5. Mobile-responsive design improvements.
+# 6. Detailed audit logs for transactions.
+# 7. Custom reporting templates.
 # 8. Integration with payment gateways.
-# 9. Dynamic notifications for overdue payments and tasks.
-# 10. Enhanced data visualization with interactive dashboards.
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+# 9. Dynamic notifications for overdue payments.
+# 10. Enhanced interactive data visualization.
 #
 #
 #
