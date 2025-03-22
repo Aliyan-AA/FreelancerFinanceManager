@@ -450,6 +450,4 @@ st.write("")
 # 5. Mobile-
 
 
-    else:
-        st.info("No hostelite records available.")
-    st.markdown("<br>" * 2, unsafe_allow_html=True)
+    
