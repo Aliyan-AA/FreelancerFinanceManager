@@ -1,11 +1,12 @@
 #################################################################
 # Hostel Financial Management Dashboard with Balance Sheet,     #
-# Rent Forecasting, Hostelite Management, and Financial Overview   #
-# Developed using Streamlit’s Built-in UI Components                 #
+# Hostelite Management, Staff Details & Staff Payments, and        #
+# Financial Overview                                             #
+# Developed using Streamlit’s Built-in UI Components               #
 # This application enables hostel owners to manage financial data,   #
-# track revenue & expenses, view a dynamic balance sheet, and          #
-# manage hostel resident details including room assignments and        #
-# payment status. It also reserves space for future enhancements.       #
+# track revenue & expenses, view a dynamic balance sheet, manage     #
+# hostel resident details including room assignments, and handle      #
+# staff information including details and payment methods.           #
 #################################################################
 
 import streamlit as st
@@ -45,17 +46,17 @@ if 'expenses' not in st.session_state:
 if 'balance_sheet' not in st.session_state:
     st.session_state.balance_sheet = {"Assets": 0.0, "Liabilities": 0.0, "Equity": 0.0}
 if 'hostelites' not in st.session_state:
-    st.session_state.hostelites = {}  # Hostelite data: key = name, value = {Room, Rent, Paid}
-if 'rent_history' not in st.session_state:
-    st.session_state.rent_history = pd.DataFrame()  # Historical rent data for forecasting
+    st.session_state.hostelites = {}  # Hostelite data: key = hostelite name, value = {Room, Rent, Paid}
 if 'assets' not in st.session_state:
     st.session_state.assets = []       # Asset entries: Date, Description, Amount
 if 'liabilities' not in st.session_state:
     st.session_state.liabilities = []  # Liability entries: Date, Description, Amount
 if 'equity' not in st.session_state:
     st.session_state.equity = []         # Equity entries: Date, Description, Amount
-if 'room_assignments' not in st.session_state:
-    st.session_state.room_assignments = []  # For future expansion
+if 'staff' not in st.session_state:
+    st.session_state.staff = {}          # Staff details: key = staff name, value = {Position, Salary, Paid}
+if 'staff_payments' not in st.session_state:
+    st.session_state.staff_payments = [] # Staff payments: list of dicts: Date, Staff, Amount, Method
 
 # ---------------------------------------------------------------
 # UTILITY FUNCTIONS
@@ -138,21 +139,6 @@ def generate_financial_report():
     df_exp = pd.DataFrame(st.session_state.expenses)
     return df_rev, df_exp
 
-def perform_rent_forecast():
-    if not isinstance(st.session_state.rent_history, pd.DataFrame) or st.session_state.rent_history.empty:
-        months = np.arange(1, 13).reshape(-1, 1)
-        rents = np.random.randint(50000, 80000, size=12)
-        st.session_state.rent_history = pd.DataFrame({"Month": months.flatten(), "Rent": rents})
-    df = st.session_state.rent_history
-    X = df[["Month"]]
-    y = df["Rent"]
-    model = LinearRegression()
-    model.fit(X, y)
-    future_months = np.arange(13, 19).reshape(-1, 1)
-    forecast = model.predict(future_months)
-    forecast_df = pd.DataFrame({"Month": future_months.flatten(), "Forecasted Rent": forecast})
-    return forecast_df
-
 def compute_payment_details():
     data = []
     for name, details in st.session_state.hostelites.items():
@@ -170,8 +156,40 @@ def compute_payment_details():
         })
     return pd.DataFrame(data)
 
+def add_staff(name, position, salary):
+    st.session_state.staff[name] = {"Position": position, "Salary": salary, "Paid": 0.0}
+
+def update_staff_payment(name, amount):
+    if name in st.session_state.staff:
+        st.session_state.staff[name]["Paid"] += amount
+
+def add_staff_payment(date, name, amount, method):
+    st.session_state.staff_payments.append({
+        "Date": date,
+        "Staff": name,
+        "Amount": amount,
+        "Method": method
+    })
+    update_staff_payment(name, amount)
+
+def compute_staff_details():
+    data = []
+    for name, details in st.session_state.staff.items():
+        salary = details["Salary"]
+        paid = details["Paid"]
+        due = max(salary - paid, 0)
+        overpaid = max(paid - salary, 0)
+        data.append({
+            "Staff": name,
+            "Position": details["Position"],
+            "Salary": salary,
+            "Amount Paid": paid,
+            "Amount Due": due,
+            "Amount Overpaid": overpaid
+        })
+    return pd.DataFrame(data)
+
 def compute_monthly_trends():
-    # Aggregate monthly revenue and expenses from actual entries; default to 0 if no data.
     if st.session_state.revenue:
         df_rev = pd.DataFrame(st.session_state.revenue)
         df_rev['Month'] = pd.to_datetime(df_rev['Date']).dt.strftime('%b')
@@ -197,7 +215,7 @@ def compute_monthly_trends():
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1974/1974895.png", width=150)
     st.markdown("<h3 style='color:white;'>Navigation</h3>", unsafe_allow_html=True)
-    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Rent Forecasting", "Hostelite Management", "Financial Overview", "Reports"]
+    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Hostelite Management", "Staff Details", "Staff Payments", "Financial Overview", "Reports"]
     page = st.radio("Go to", pages)
 
 # ---------------------------------------------------------------
@@ -206,7 +224,7 @@ with st.sidebar:
 st.markdown("<p class='main-title'>Hostel Financial Manager</p>", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# DASHBOARD SECTION (Modified)
+# DASHBOARD SECTION
 # ---------------------------------------------------------------
 if page == "Dashboard":
     st.header("Dashboard Overview")
@@ -223,7 +241,6 @@ if page == "Dashboard":
     st.markdown("<hr>", unsafe_allow_html=True)
     st.subheader("Monthly Trends")
     trends_df = compute_monthly_trends()
-    # The graph will display actual values, or 0 if no data exists, and update dynamically.
     fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
     st.plotly_chart(fig_trends, use_container_width=True)
     st.markdown("<br>" * 2, unsafe_allow_html=True)
@@ -281,41 +298,11 @@ elif page == "Balance Sheet":
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# RENT FORECASTING SECTION
-# ---------------------------------------------------------------
-elif page == "Rent Forecasting":
-    st.header("Rent Collection Forecasting")
-    st.write("Forecast future rent collection based on historical data.")
-    if st.button("Generate Dummy Rent History"):
-        months = np.arange(1, 13)
-        rents = np.random.randint(50000, 80000, size=12)
-        st.session_state.rent_history = pd.DataFrame({"Month": months, "Rent": rents})
-        st.success("Dummy rent history generated!")
-    if isinstance(st.session_state.rent_history, pd.DataFrame) and not st.session_state.rent_history.empty:
-        st.write("### Historical Rent Data")
-        st.dataframe(st.session_state.rent_history)
-        forecast_df = perform_rent_forecast()
-        st.write("### Forecasted Rent Collection")
-        st.dataframe(forecast_df)
-        fig_forecast = px.line(forecast_df, x="Month", y="Forecasted Rent", markers=True, title="Rent Forecast")
-        st.plotly_chart(fig_forecast, use_container_width=True)
-    else:
-        st.info("Generate dummy rent history to see forecast results.")
-    st.markdown("<br>" * 2, unsafe_allow_html=True)
-    st.subheader("Hostelite Payment Details")
-    payment_details_df = compute_payment_details()
-    if not payment_details_df.empty:
-        st.dataframe(payment_details_df)
-    else:
-        st.info("No hostelite payment data available.")
-    st.markdown("<br>" * 2, unsafe_allow_html=True)
-
-# ---------------------------------------------------------------
-# HOSTELITE MANAGEMENT SECTION (Organized List Format)
+# HOSTELITE MANAGEMENT SECTION
 # ---------------------------------------------------------------
 elif page == "Hostelite Management":
     st.header("Hostelite Management")
-    st.subheader("Add/Update Hostelite Details")
+    st.subheader("Hostelite Details")
     with st.form("hostelite_form", clear_on_submit=True):
         name = st.text_input("Hostelite Name")
         room_no = st.text_input("Allocated Room Number")
@@ -331,9 +318,56 @@ elif page == "Hostelite Management":
         hostelite_df = pd.DataFrame.from_dict(st.session_state.hostelites, orient='index').reset_index().rename(columns={'index': 'Hostelite'})
         hostelite_df["Amount Due"] = hostelite_df.apply(lambda row: max(row["Rent"] - row["Paid"], 0), axis=1)
         hostelite_df["Amount Overpaid"] = hostelite_df.apply(lambda row: max(row["Paid"] - row["Rent"], 0), axis=1)
-        st.dataframe(hostelite_df)
+        st.dataframe(hostelite_df[["Hostelite", "Room", "Rent", "Paid", "Amount Due", "Amount Overpaid"]])
     else:
         st.info("No hostelite records available.")
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
+
+# ---------------------------------------------------------------
+# STAFF DETAILS SECTION (New Feature)
+# ---------------------------------------------------------------
+elif page == "Staff Details":
+    st.header("Staff Details")
+    st.subheader("Add/Update Staff Information")
+    with st.form("staff_form", clear_on_submit=True):
+        staff_name = st.text_input("Staff Name")
+        staff_position = st.text_input("Position")
+        staff_salary = st.number_input("Salary (PKR)", min_value=0.0, format="%.2f")
+        staff_paid = st.number_input("Amount Paid (PKR)", min_value=0.0, format="%.2f")
+        if st.form_submit_button("Add/Update Staff"):
+            st.session_state.staff[staff_name] = {"Position": staff_position, "Salary": staff_salary, "Paid": staff_paid}
+            st.success(f"Staff {staff_name} added/updated successfully!")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Current Staff Records")
+    if st.session_state.staff:
+        staff_df = pd.DataFrame.from_dict(st.session_state.staff, orient='index').reset_index().rename(columns={'index': 'Staff'})
+        staff_df["Amount Due"] = staff_df.apply(lambda row: max(row["Salary"] - row["Paid"], 0), axis=1)
+        staff_df["Amount Overpaid"] = staff_df.apply(lambda row: max(row["Paid"] - row["Salary"], 0), axis=1)
+        st.dataframe(staff_df[["Staff", "Position", "Salary", "Paid", "Amount Due", "Amount Overpaid"]])
+    else:
+        st.info("No staff records available.")
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
+
+# ---------------------------------------------------------------
+# STAFF PAYMENTS SECTION (New Feature)
+# ---------------------------------------------------------------
+elif page == "Staff Payments":
+    st.header("Staff Payments")
+    with st.form("staff_payment_form", clear_on_submit=True):
+        pay_date = st.date_input("Payment Date", datetime.date.today())
+        staff_member = st.selectbox("Select Staff", list(st.session_state.staff.keys()) if st.session_state.staff else ["No Staff Available"])
+        staff_amount = st.number_input("Payment Amount (PKR)", min_value=0.0, format="%.2f")
+        pay_method = st.selectbox("Payment Method", ["Cash", "Online Transaction", "Bank Transfer"])
+        if st.form_submit_button("Record Staff Payment") and staff_member != "No Staff Available":
+            add_staff_payment(pay_date, staff_member, staff_amount, pay_method)
+            st.success(f"Payment of PKR {staff_amount} recorded for {staff_member}!")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Staff Payment Records")
+    if st.session_state.staff_payments:
+        df_staff_pay = pd.DataFrame(st.session_state.staff_payments)
+        st.dataframe(df_staff_pay)
+    else:
+        st.info("No staff payments recorded yet.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
@@ -429,7 +463,7 @@ st.sidebar.write("")
 st.sidebar.write("")
 
 st.write("Placeholder: Future features and enhancements can be implemented here. (This area is reserved for expansion.)")
-st.write("")  # Single blank line for separation
+st.write("")
 
 # ---------------------------------------------------------------
 # ADDITIONAL BLANK LINES TO APPROXIMATE 500 LINES
