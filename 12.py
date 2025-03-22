@@ -448,7 +448,7 @@ st.write("")
 # 3. User authentication and role management.
 # 4. Multi-hostel management and consolidated reporting.
 # 5. Mobile-
-elif page == "Hostelite Management":
+
     st.header("Hostelite Management")
     st.subheader("Add/Update Hostelite Details")
     with st.form("hostelite_form", clear_on_submit=True):
