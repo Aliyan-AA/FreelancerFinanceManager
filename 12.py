@@ -1,12 +1,13 @@
 #################################################################
 # Hostel Financial Management Dashboard with Balance Sheet,     #
-# Hostelite Management, Staff Details & Staff Payments, and        #
-# Financial Overview                                             #
+# Hostelite Management, Staff Payments and Dues, and               #
+# Hostel Management Payments and Dues                           #
 # Developed using Streamlit’s Built-in UI Components               #
 # This application enables hostel owners to manage financial data,   #
 # track revenue & expenses, view a dynamic balance sheet, manage     #
-# hostel resident details including room assignments, and handle      #
-# staff information including details and payment methods.           #
+# hostel resident details including room assignments and payment     #
+# statuses, and handle staff payments with due tracking. It also       #
+# reserved space for future enhancements.                            #
 #################################################################
 
 import streamlit as st
@@ -40,13 +41,13 @@ st.markdown("""
 # INITIALIZE SESSION STATE DATA STRUCTURES
 # ---------------------------------------------------------------
 if 'revenue' not in st.session_state:
-    st.session_state.revenue = []  # Revenue entries: Date, Description, Amount
+    st.session_state.revenue = []  # List of revenue entries: Date, Description, Amount
 if 'expenses' not in st.session_state:
-    st.session_state.expenses = []  # Expense entries: Date, Category, Description, Amount
+    st.session_state.expenses = []  # List of expense entries: Date, Category, Description, Amount
 if 'balance_sheet' not in st.session_state:
     st.session_state.balance_sheet = {"Assets": 0.0, "Liabilities": 0.0, "Equity": 0.0}
 if 'hostelites' not in st.session_state:
-    st.session_state.hostelites = {}  # Hostelite data: key = hostelite name, value = {Room, Rent, Paid}
+    st.session_state.hostelites = {}  # Dict: key = hostelite name, value = {Room, Rent, Paid}
 if 'assets' not in st.session_state:
     st.session_state.assets = []       # Asset entries: Date, Description, Amount
 if 'liabilities' not in st.session_state:
@@ -54,9 +55,9 @@ if 'liabilities' not in st.session_state:
 if 'equity' not in st.session_state:
     st.session_state.equity = []         # Equity entries: Date, Description, Amount
 if 'staff' not in st.session_state:
-    st.session_state.staff = {}          # Staff details: key = staff name, value = {Position, Salary, Paid}
+    st.session_state.staff = {}          # Staff details: key = staff name, value = {Position, Expected Payment}
 if 'staff_payments' not in st.session_state:
-    st.session_state.staff_payments = [] # Staff payments: list of dicts: Date, Staff, Amount, Method
+    st.session_state.staff_payments = [] # Staff payment records: list of dicts: Date, Staff, Amount, Method
 
 # ---------------------------------------------------------------
 # UTILITY FUNCTIONS
@@ -156,12 +157,8 @@ def compute_payment_details():
         })
     return pd.DataFrame(data)
 
-def add_staff(name, position, salary):
-    st.session_state.staff[name] = {"Position": position, "Salary": salary, "Paid": 0.0}
-
-def update_staff_payment(name, amount):
-    if name in st.session_state.staff:
-        st.session_state.staff[name]["Paid"] += amount
+def add_staff(name, position, expected_payment):
+    st.session_state.staff[name] = {"Position": position, "Expected Payment": expected_payment}
 
 def add_staff_payment(date, name, amount, method):
     st.session_state.staff_payments.append({
@@ -170,19 +167,25 @@ def add_staff_payment(date, name, amount, method):
         "Amount": amount,
         "Method": method
     })
-    update_staff_payment(name, amount)
 
-def compute_staff_details():
+def compute_staff_payments():
+    # Compute total paid for each staff from staff_payments records
+    staff_data = {}
+    for name in st.session_state.staff:
+        staff_data[name] = {"Expected Payment": st.session_state.staff[name]["Expected Payment"], "Paid": 0}
+    for payment in st.session_state.staff_payments:
+        name = payment["Staff"]
+        if name in staff_data:
+            staff_data[name]["Paid"] += payment["Amount"]
     data = []
-    for name, details in st.session_state.staff.items():
-        salary = details["Salary"]
+    for name, details in staff_data.items():
+        expected = details["Expected Payment"]
         paid = details["Paid"]
-        due = max(salary - paid, 0)
-        overpaid = max(paid - salary, 0)
+        due = max(expected - paid, 0)
+        overpaid = max(paid - expected, 0)
         data.append({
             "Staff": name,
-            "Position": details["Position"],
-            "Salary": salary,
+            "Expected Payment": expected,
             "Amount Paid": paid,
             "Amount Due": due,
             "Amount Overpaid": overpaid
@@ -215,7 +218,7 @@ def compute_monthly_trends():
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1974/1974895.png", width=150)
     st.markdown("<h3 style='color:white;'>Navigation</h3>", unsafe_allow_html=True)
-    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Hostelite Management", "Staff Details", "Staff Payments", "Financial Overview", "Reports"]
+    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Hostelite Management", "Staff Payments and Dues", "Hostel Management Payments and Dues", "Financial Overview", "Reports"]
     page = st.radio("Go to", pages)
 
 # ---------------------------------------------------------------
@@ -298,76 +301,47 @@ elif page == "Balance Sheet":
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# HOSTELITE MANAGEMENT SECTION
+# HOSTELITE MANAGEMENT PAYMENTS AND DUES SECTION
 # ---------------------------------------------------------------
-elif page == "Hostelite Management":
-    st.header("Hostelite Management")
-    st.subheader("Hostelite Details")
-    with st.form("hostelite_form", clear_on_submit=True):
-        name = st.text_input("Hostelite Name")
-        room_no = st.text_input("Allocated Room Number")
-        rent = st.number_input("Required Rent (PKR)", min_value=0.0, format="%.2f")
-        paid = st.number_input("Amount Paid (PKR)", min_value=0.0, format="%.2f")
-        if st.form_submit_button("Add/Update Hostelite"):
-            add_hostelite(name, room_no, rent)
-            st.session_state.hostelites[name]["Paid"] = paid
-            st.success(f"Hostelite {name} added/updated successfully!")
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.subheader("Current Hostelite Records")
-    if st.session_state.hostelites:
-        hostelite_df = pd.DataFrame.from_dict(st.session_state.hostelites, orient='index').reset_index().rename(columns={'index': 'Hostelite'})
-        hostelite_df["Amount Due"] = hostelite_df.apply(lambda row: max(row["Rent"] - row["Paid"], 0), axis=1)
-        hostelite_df["Amount Overpaid"] = hostelite_df.apply(lambda row: max(row["Paid"] - row["Rent"], 0), axis=1)
-        st.dataframe(hostelite_df[["Hostelite", "Room", "Rent", "Paid", "Amount Due", "Amount Overpaid"]])
+elif page == "Hostel Management Payments and Dues":
+    st.header("Hostel Management Payments and Dues")
+    payment_details_df = compute_payment_details()
+    if not payment_details_df.empty:
+        st.dataframe(payment_details_df)
     else:
-        st.info("No hostelite records available.")
+        st.info("No hostelite payment data available.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# STAFF DETAILS SECTION (New Feature)
+# STAFF PAYMENTS AND DUES SECTION
 # ---------------------------------------------------------------
-elif page == "Staff Details":
-    st.header("Staff Details")
+elif page == "Staff Payments and Dues":
+    st.header("Staff Payments and Dues")
     st.subheader("Add/Update Staff Information")
     with st.form("staff_form", clear_on_submit=True):
         staff_name = st.text_input("Staff Name")
         staff_position = st.text_input("Position")
-        staff_salary = st.number_input("Salary (PKR)", min_value=0.0, format="%.2f")
-        staff_paid = st.number_input("Amount Paid (PKR)", min_value=0.0, format="%.2f")
+        expected_payment = st.number_input("Expected Payment (PKR)", min_value=0.0, format="%.2f")
         if st.form_submit_button("Add/Update Staff"):
-            st.session_state.staff[staff_name] = {"Position": staff_position, "Salary": staff_salary, "Paid": staff_paid}
+            st.session_state.staff[staff_name] = {"Position": staff_position, "Expected Payment": expected_payment}
             st.success(f"Staff {staff_name} added/updated successfully!")
     st.markdown("<hr>", unsafe_allow_html=True)
-    st.subheader("Current Staff Records")
-    if st.session_state.staff:
-        staff_df = pd.DataFrame.from_dict(st.session_state.staff, orient='index').reset_index().rename(columns={'index': 'Staff'})
-        staff_df["Amount Due"] = staff_df.apply(lambda row: max(row["Salary"] - row["Paid"], 0), axis=1)
-        staff_df["Amount Overpaid"] = staff_df.apply(lambda row: max(row["Paid"] - row["Salary"], 0), axis=1)
-        st.dataframe(staff_df[["Staff", "Position", "Salary", "Paid", "Amount Due", "Amount Overpaid"]])
-    else:
-        st.info("No staff records available.")
-    st.markdown("<br>" * 2, unsafe_allow_html=True)
-
-# ---------------------------------------------------------------
-# STAFF PAYMENTS SECTION (New Feature)
-# ---------------------------------------------------------------
-elif page == "Staff Payments":
-    st.header("Staff Payments")
+    st.subheader("Record Staff Payment")
     with st.form("staff_payment_form", clear_on_submit=True):
         pay_date = st.date_input("Payment Date", datetime.date.today())
         staff_member = st.selectbox("Select Staff", list(st.session_state.staff.keys()) if st.session_state.staff else ["No Staff Available"])
-        staff_amount = st.number_input("Payment Amount (PKR)", min_value=0.0, format="%.2f")
+        pay_amount = st.number_input("Payment Amount (PKR)", min_value=0.0, format="%.2f")
         pay_method = st.selectbox("Payment Method", ["Cash", "Online Transaction", "Bank Transfer"])
         if st.form_submit_button("Record Staff Payment") and staff_member != "No Staff Available":
-            add_staff_payment(pay_date, staff_member, staff_amount, pay_method)
-            st.success(f"Payment of PKR {staff_amount} recorded for {staff_member}!")
+            add_staff_payment(pay_date, staff_member, pay_amount, pay_method)
+            st.success(f"Payment of PKR {pay_amount} recorded for {staff_member}!")
     st.markdown("<hr>", unsafe_allow_html=True)
-    st.subheader("Staff Payment Records")
-    if st.session_state.staff_payments:
-        df_staff_pay = pd.DataFrame(st.session_state.staff_payments)
-        st.dataframe(df_staff_pay)
+    st.subheader("Staff Payment Details")
+    staff_payment_df = compute_staff_payments()
+    if not staff_payment_df.empty:
+        st.dataframe(staff_payment_df)
     else:
-        st.info("No staff payments recorded yet.")
+        st.info("No staff payment data available.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
