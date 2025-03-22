@@ -2,9 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import qrcode
-import os
-from io import BytesIO
 
 # Title of the application
 st.title("Hostel Financial Management System")
@@ -12,14 +9,6 @@ st.title("Hostel Financial Management System")
 # Sidebar for navigation
 st.sidebar.header("Navigation")
 page = st.sidebar.selectbox("Select a page:", ["Dashboard", "Hostel Management", "Financial Management", "Future Enhancements"])
-
-# Function to generate QR codes
-def generate_qr_code(data):
-    qr = qrcode.make(data)
-    buf = BytesIO()
-    qr.save(buf, format='PNG')
-    buf.seek(0)
-    return buf
 
 # Function to simulate financial data
 def generate_financial_data():
@@ -108,18 +97,6 @@ elif page == "Future Enhancements":
     st.write("3. Mobile app for easier access and management.")
     st.write("4. Advanced analytics for forecasting and budgeting.")
     st.write("5. User feedback section to understand needs better.")
-
-# Generate QR code for hostelite ID
-st.subheader("Generate Hostelite ID Card")
-hostelite_name = st.text_input("Hostelite Name")
-hostelite_id = st.text_input("Hostelite ID")
-
-if st.button("Generate QR Code"):
-    if hostelite_name and hostelite_id:
-        qr_data = f"{hostelite_name} - ID: {hostelite_id}"
-        qr_code_image = generate_qr_code(qr_data)
-        st.image(qr_code_image, caption="Hostelite ID QR Code")
-        st.success("QR Code generated successfully!")
 
 # Footer
 st.sidebar.write("Developed by [Your Name]")
