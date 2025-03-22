@@ -1,11 +1,12 @@
 #################################################################
 # Hostel Financial Management Dashboard with Balance Sheet,     #
-# Rent Collection Forecasting, and Room Assignments              #
-# Developed using Streamlit’s Built-in UI Components               #
-# This application enables hostel owners to analyze financial      #
-# data, manage hostelites, track revenue and expenses, view a        #
-# dynamic balance sheet, forecast rent collection, and manage        #
-# room assignments. It also reserves space for future enhancements.  #
+# Rent Forecasting, Hostelite Management, and Financial Overview   #
+# Developed using Streamlit’s Built-in UI Components                 #
+# This application enables hostel owners to manage financial data,   #
+# track revenue & expenses, view a dynamic balance sheet, forecast   #
+# future rent collection with detailed room assignments, and add     #
+# assets, liabilities, and equity for a comprehensive financial      #
+# overview.                                                          #
 #################################################################
 
 import streamlit as st
@@ -39,19 +40,21 @@ st.markdown("""
 # INITIALIZE SESSION STATE DATA STRUCTURES
 # ---------------------------------------------------------------
 if 'revenue' not in st.session_state:
-    st.session_state.revenue = []  # Revenue entries: Date, Description, Amount
+    st.session_state.revenue = []  # List of revenue entries: Date, Description, Amount
 if 'expenses' not in st.session_state:
-    st.session_state.expenses = []  # Expense entries: Date, Category, Description, Amount
+    st.session_state.expenses = []  # List of expense entries: Date, Category, Description, Amount
 if 'balance_sheet' not in st.session_state:
     st.session_state.balance_sheet = {"Assets": 0.0, "Liabilities": 0.0, "Equity": 0.0}
 if 'hostelites' not in st.session_state:
-    st.session_state.hostelites = {}  # Hostelite data: key=name, value={Room, Rent, Paid}
-if 'tasks' not in st.session_state:
-    st.session_state.tasks = []      # Task scheduling: list of dicts {Task, Assigned To, Due Date}
+    st.session_state.hostelites = {}  # Dict: key = hostelite name, value = {Room, Rent, Paid}
 if 'rent_history' not in st.session_state:
     st.session_state.rent_history = pd.DataFrame()  # DataFrame for historical rent data
-if 'room_assignments' not in st.session_state:
-    st.session_state.room_assignments = []  # List for room assignments
+if 'assets' not in st.session_state:
+    st.session_state.assets = []       # List of asset entries: Date, Description, Amount
+if 'liabilities' not in st.session_state:
+    st.session_state.liabilities = []  # List of liability entries: Date, Description, Amount
+if 'equity' not in st.session_state:
+    st.session_state.equity = []         # List of equity entries: Date, Description, Amount
 
 # ---------------------------------------------------------------
 # UTILITY FUNCTIONS
@@ -79,12 +82,14 @@ def update_hostelite_payment(hostelite, amount):
         st.session_state.hostelites[hostelite]["Paid"] += amount
 
 def add_payment(date, hostelite, amount, method):
-    st.session_state.payments.append({
+    st.session_state.revenue.append({
         "Date": date,
-        "Hostelite": hostelite,
-        "Amount Paid": amount,
-        "Method": method
+        "Description": f"Rent Payment from {hostelite}",
+        "Amount": amount
     })
+    update_hostelite_payment(hostelite, amount)
+    # Optionally, you can store payment details separately
+    # For this code, revenue is used to track incoming rent
 
 def update_balance_sheet():
     total_revenue = sum([entry["Amount"] for entry in st.session_state.revenue])
@@ -101,6 +106,33 @@ def get_balance_sheet_df():
         "Amount": [bs["Assets"], bs["Liabilities"], bs["Equity"]]
     })
     return df
+
+def add_asset(date, description, amount):
+    st.session_state.assets.append({
+        "Date": date,
+        "Description": description,
+        "Amount": amount
+    })
+
+def add_liability(date, description, amount):
+    st.session_state.liabilities.append({
+        "Date": date,
+        "Description": description,
+        "Amount": amount
+    })
+
+def add_equity(date, description, amount):
+    st.session_state.equity.append({
+        "Date": date,
+        "Description": description,
+        "Amount": amount
+    })
+
+def get_financial_overview_df():
+    df_assets = pd.DataFrame(st.session_state.assets)
+    df_liabilities = pd.DataFrame(st.session_state.liabilities)
+    df_equity = pd.DataFrame(st.session_state.equity)
+    return df_assets, df_liabilities, df_equity
 
 def generate_financial_report():
     df_rev = pd.DataFrame(st.session_state.revenue)
@@ -122,37 +154,23 @@ def perform_rent_forecast():
     forecast_df = pd.DataFrame({"Month": future_months.flatten(), "Forecasted Rent": forecast})
     return forecast_df
 
-def add_room_assignment(room_no, occupant, required_payment, amount_paid):
-    due = required_payment - amount_paid
-    if due < 0:
-        status = "Overpaid"
-    elif due == 0:
-        status = "Cleared"
-    else:
-        status = "Due"
-    st.session_state.room_assignments.append({
-        "Room No": room_no,
-        "Occupant": occupant,
-        "Required Payment": required_payment,
-        "Amount Paid": amount_paid,
-        "Status": status
-    })
-
-def update_room_assignment(index, room_no, occupant, required_payment, amount_paid):
-    due = required_payment - amount_paid
-    if due < 0:
-        status = "Overpaid"
-    elif due == 0:
-        status = "Cleared"
-    else:
-        status = "Due"
-    st.session_state.room_assignments[index] = {
-        "Room No": room_no,
-        "Occupant": occupant,
-        "Required Payment": required_payment,
-        "Amount Paid": amount_paid,
-        "Status": status
-    }
+def compute_payment_details():
+    # For each hostelite, compute amount due and overpaid
+    data = []
+    for name, details in st.session_state.hostelites.items():
+        rent = details["Rent"]
+        paid = details["Paid"]
+        due = max(rent - paid, 0)
+        overpaid = max(paid - rent, 0)
+        data.append({
+            "Hostelite": name,
+            "Room": details["Room"],
+            "Required Rent": rent,
+            "Amount Paid": paid,
+            "Amount Due": due,
+            "Amount Overpaid": overpaid
+        })
+    return pd.DataFrame(data)
 
 # ---------------------------------------------------------------
 # SIDEBAR NAVIGATION
@@ -160,7 +178,7 @@ def update_room_assignment(index, room_no, occupant, required_payment, amount_pa
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1974/1974895.png", width=150)
     st.markdown("<h3 style='color:white;'>Navigation</h3>", unsafe_allow_html=True)
-    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Rent Forecasting", "Room Assignments", "Reports", "Task Scheduling"]
+    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Rent Forecasting", "Hostelite Management", "Financial Overview", "Reports"]
     page = st.radio("Go to", pages)
 
 # ---------------------------------------------------------------
@@ -247,11 +265,11 @@ elif page == "Balance Sheet":
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# RENT FORECASTING SECTION
+# RENT FORECASTING SECTION (with Detailed Room Payment Info)
 # ---------------------------------------------------------------
 elif page == "Rent Forecasting":
-    st.header("Rent Collection Forecasting")
-    st.write("Forecast future rent collection based on historical data.")
+    st.header("Rent Collection Forecasting & Room Payment Details")
+    st.write("Forecast future rent collection based on historical data and view detailed payment status for each hostelite.")
     if st.button("Generate Dummy Rent History"):
         months = np.arange(1, 13)
         rents = np.random.randint(50000, 80000, size=12)
@@ -268,38 +286,91 @@ elif page == "Rent Forecasting":
     else:
         st.info("Generate dummy rent history to see forecast results.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
+    st.subheader("Hostelite Rent Payment Details")
+    payment_details_df = compute_payment_details()
+    if not payment_details_df.empty:
+        st.dataframe(payment_details_df)
+    else:
+        st.info("No hostelite payment data available.")
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# ROOM ASSIGNMENTS SECTION (New Feature)
+# HOSTELITE MANAGEMENT SECTION
 # ---------------------------------------------------------------
-elif page == "Room Assignments":
-    st.header("Room Assignments Management")
-    with st.form("room_assignment_form", clear_on_submit=True):
-        room_no = st.text_input("Room Number")
-        occupant = st.text_input("Occupant Name")
-        required_payment = st.number_input("Required Payment (PKR)", min_value=0.0, format="%.2f")
-        amount_paid = st.number_input("Amount Paid (PKR)", min_value=0.0, format="%.2f")
-        if st.form_submit_button("Add Room Assignment") and room_no and occupant:
-            add_room_assignment(room_no, occupant, required_payment, amount_paid)
-            st.success(f"Room {room_no} assigned to {occupant} updated!")
-    st.markdown("### Current Room Assignments")
-    if st.session_state.room_assignments:
-        df_rooms = pd.DataFrame(st.session_state.room_assignments)
-        st.dataframe(df_rooms)
-        # Option to update an existing assignment
-        st.subheader("Update Room Assignment")
-        index_to_update = st.number_input("Enter the index of the assignment to update (starting from 0)", min_value=0, max_value=len(st.session_state.room_assignments)-1, step=1)
-        if st.session_state.room_assignments:
-            with st.form("update_room_form", clear_on_submit=True):
-                new_room_no = st.text_input("New Room Number", value=df_rooms.iloc[index_to_update]["Room No"])
-                new_occupant = st.text_input("New Occupant Name", value=df_rooms.iloc[index_to_update]["Occupant"])
-                new_required_payment = st.number_input("New Required Payment (PKR)", min_value=0.0, value=float(df_rooms.iloc[index_to_update]["Required Payment"]), format="%.2f")
-                new_amount_paid = st.number_input("New Amount Paid (PKR)", min_value=0.0, value=float(df_rooms.iloc[index_to_update]["Amount Paid"]), format="%.2f")
-                if st.form_submit_button("Update Assignment"):
-                    update_room_assignment(index_to_update, new_room_no, new_occupant, new_required_payment, new_amount_paid)
-                    st.success("Room assignment updated!")
+elif page == "Hostelite Management":
+    st.header("Hostelite Management")
+    st.subheader("Add/Update Hostelite Details")
+    with st.form("hostelite_form", clear_on_submit=True):
+        name = st.text_input("Hostelite Name")
+        room_no = st.text_input("Allocated Room Number")
+        rent = st.number_input("Required Rent (PKR)", min_value=0.0, format="%.2f")
+        paid = st.number_input("Amount Paid (PKR)", min_value=0.0, format="%.2f")
+        if st.form_submit_button("Add/Update Hostelite"):
+            add_hostelite(name, room_no, rent)
+            st.session_state.hostelites[name]["Paid"] = paid
+            st.success(f"Hostelite {name} added/updated successfully!")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Current Hostelite Records")
+    if st.session_state.hostelites:
+        hostelite_df = pd.DataFrame.from_dict(st.session_state.hostelites, orient='index').reset_index().rename(columns={'index': 'Name'})
+        hostelite_df["Amount Due"] = hostelite_df.apply(lambda row: max(row["Rent"] - row["Paid"], 0), axis=1)
+        hostelite_df["Amount Overpaid"] = hostelite_df.apply(lambda row: max(row["Paid"] - row["Rent"], 0), axis=1)
+        st.dataframe(hostelite_df)
     else:
-        st.info("No room assignments available.")
+        st.info("No hostelite records available.")
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
+
+# ---------------------------------------------------------------
+# FINANCIAL OVERVIEW SECTION (Assets, Liabilities, Equity)
+# ---------------------------------------------------------------
+elif page == "Financial Overview":
+    st.header("Financial Overview - Balance Sheet Details")
+    col1, col2, col3 = st.tabs(["Assets", "Liabilities", "Equity"])
+    with col1:
+        st.subheader("Add Asset")
+        with st.form("asset_form", clear_on_submit=True):
+            asset_date = st.date_input("Date", datetime.date.today())
+            asset_desc = st.text_input("Description")
+            asset_amount = st.number_input("Amount (PKR)", min_value=0.0, format="%.2f")
+            if st.form_submit_button("Add Asset"):
+                add_asset(asset_date, asset_desc, asset_amount)
+                st.success("Asset added!")
+        st.subheader("Current Assets")
+        df_assets = pd.DataFrame(st.session_state.assets)
+        if not df_assets.empty:
+            st.dataframe(df_assets)
+        else:
+            st.info("No assets recorded yet.")
+    with col2:
+        st.subheader("Add Liability")
+        with st.form("liability_form", clear_on_submit=True):
+            liab_date = st.date_input("Date", datetime.date.today())
+            liab_desc = st.text_input("Description")
+            liab_amount = st.number_input("Amount (PKR)", min_value=0.0, format="%.2f")
+            if st.form_submit_button("Add Liability"):
+                add_liability(liab_date, liab_desc, liab_amount)
+                st.success("Liability added!")
+        st.subheader("Current Liabilities")
+        df_liab = pd.DataFrame(st.session_state.liabilities)
+        if not df_liab.empty:
+            st.dataframe(df_liab)
+        else:
+            st.info("No liabilities recorded yet.")
+    with col3:
+        st.subheader("Add Equity")
+        with st.form("equity_form", clear_on_submit=True):
+            eq_date = st.date_input("Date", datetime.date.today())
+            eq_desc = st.text_input("Description")
+            eq_amount = st.number_input("Amount (PKR)", min_value=0.0, format="%.2f")
+            if st.form_submit_button("Add Equity"):
+                add_equity(eq_date, eq_desc, eq_amount)
+                st.success("Equity added!")
+        st.subheader("Current Equity")
+        df_eq = pd.DataFrame(st.session_state.equity)
+        if not df_eq.empty:
+            st.dataframe(df_eq)
+        else:
+            st.info("No equity recorded yet.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
@@ -333,26 +404,6 @@ elif page == "Reports":
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# TASK SCHEDULING & REMINDERS SECTION
-# ---------------------------------------------------------------
-elif page == "Task Scheduling":
-    st.header("Task Scheduling & Reminders")
-    with st.form("task_form", clear_on_submit=True):
-        task_desc = st.text_input("Task Description")
-        assigned_to = st.text_input("Assigned To (Staff Name)")
-        due_date = st.date_input("Due Date", datetime.date.today())
-        task_submit = st.form_submit_button("Schedule Task")
-        if task_submit and task_desc:
-            st.session_state.tasks.append({"Task": task_desc, "Assigned To": assigned_to, "Due Date": due_date})
-            st.success(f"Task scheduled: {task_desc}")
-    st.markdown("### Scheduled Tasks")
-    if st.session_state.tasks:
-        tasks_df = pd.DataFrame(st.session_state.tasks)
-        st.dataframe(tasks_df)
-    else:
-        st.info("No tasks scheduled yet.")
-
-# ---------------------------------------------------------------
 # FOOTER SECTION
 # ---------------------------------------------------------------
 st.sidebar.markdown("---")
@@ -360,15 +411,16 @@ st.sidebar.markdown("<p style='text-align: center;'>Developed with ❤️ by Ali
 st.sidebar.markdown("© 2025 Hostel Finance Manager")
 st.sidebar.write("")
 st.sidebar.write("")
-st.sidebar.write("")
 
 st.write("Placeholder: Future features and enhancements can be implemented here. (This area is reserved for expansion.)")
+st.write("")  # Single blank line for separation
 
 # ---------------------------------------------------------------
 # ADDITIONAL BLANK LINES TO APPROXIMATE 500 LINES
 # ---------------------------------------------------------------
-# The following lines serve as placeholders for future expansion.
-# Future enhancements may include:
+# The following comments and blank lines serve as placeholders for future expansion.
+#
+# Future enhancements:
 # 1. Integration with external APIs for real-time financial data.
 # 2. Advanced AI-based revenue forecasting.
 # 3. User authentication and role management.
@@ -379,16 +431,6 @@ st.write("Placeholder: Future features and enhancements can be implemented here.
 # 8. Integration with payment gateways.
 # 9. Dynamic notifications for overdue payments and tasks.
 # 10. Enhanced interactive data visualization.
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
 #
 #
 #
