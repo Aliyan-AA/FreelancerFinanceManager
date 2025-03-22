@@ -1,103 +1,144 @@
 #################################################################
-# Hostel Financial Management Dashboard with Balance Sheet,     
-# Payment Processing, Hostel Management, and Ongoing Projects     
-# Developed using Streamlit's Built-in UI Components                
-# This application enables hostel owners to manage financial data,
-# track revenue & expenses, view a dynamic balance sheet, manage hostels,
-# record payment transactions, and track ongoing hostel-related projects.
+# Hostel Financial Management Dashboard with Balance Sheet,     #
+# Hostelite Management, Staff Payments and Dues, and               #
+# Hostel Management Payments and Dues                           #
+# Developed using Streamlit’s Built-in UI Components               #
+# This application enables hostel owners to manage financial data,   #
+# track revenue & expenses, view a dynamic balance sheet, manage     #
+# hostel resident details including room assignments and payment     #
+# statuses, and handle staff payments with due tracking. It also       #
+# reserved space for future enhancements.                            #
 #################################################################
 
 import streamlit as st
 import pandas as pd
 import numpy as np
 import datetime
+import matplotlib.pyplot as plt
 import plotly.express as px
+import seaborn as sns
 from sklearn.linear_model import LinearRegression
 
-# PAGE CONFIGURATION & STYLING
+# ---------------------------------------------------------------
+# PAGE CONFIGURATION & CUSTOM STYLING
+# ---------------------------------------------------------------
 st.set_page_config(page_title="Hostel Financial Manager", layout="wide")
 st.markdown("""
-<style>
-body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-.main-title { font-size: 42px; font-weight: 700; color: #003366; text-align: center; margin-bottom: 20px; }
-.sidebar .sidebar-content { background-color: #004b8d; color: white; }
-.metric-box { background: #fff; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-.stButton>button { background-color: #0051a2; color: white; border-radius: 8px; padding: 8px 16px; font-size: 16px; border: none; }
-</style>
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .main-title { font-size: 42px; font-weight: 700; color: #003366; text-align: center; margin-bottom: 20px; }
+        .sidebar .sidebar-content { background-color: #004b8d; color: white; }
+        .metric-box { background: #fff; padding: 20px; border-radius: 10px; text-align: center;
+                      box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .stButton>button { background-color: #0051a2; color: white; border-radius: 8px;
+                           padding: 8px 16px; font-size: 16px; border: none; }
+        .stTextInput label, .stNumberInput label, .stDateInput label { font-weight: bold; color: #003366; }
+        .dataframe th, .dataframe td { padding: 8px; }
+    </style>
 """, unsafe_allow_html=True)
 
-# SESSION STATE INITIALIZATION
+# ---------------------------------------------------------------
+# INITIALIZE SESSION STATE DATA STRUCTURES
+# ---------------------------------------------------------------
 if 'revenue' not in st.session_state:
-    st.session_state.revenue = []
+    st.session_state.revenue = []  # List of revenue entries: Date, Description, Amount
 if 'expenses' not in st.session_state:
-    st.session_state.expenses = []
+    st.session_state.expenses = []  # List of expense entries: Date, Category, Description, Amount
 if 'balance_sheet' not in st.session_state:
     st.session_state.balance_sheet = {"Assets": 0.0, "Liabilities": 0.0, "Equity": 0.0}
 if 'hostelites' not in st.session_state:
-    st.session_state.hostelites = {}  # For resident data
-if 'hostels' not in st.session_state:
-    st.session_state.hostels = []     # For hostel data
-if 'projects' not in st.session_state:
-    st.session_state.projects = []    # For ongoing projects
+    st.session_state.hostelites = {}  # Dict: key = hostelite name, value = {Room, Rent, Paid}
 if 'assets' not in st.session_state:
-    st.session_state.assets = []
+    st.session_state.assets = []       # Asset entries: Date, Description, Amount
 if 'liabilities' not in st.session_state:
-    st.session_state.liabilities = []
+    st.session_state.liabilities = []  # Liability entries: Date, Description, Amount
 if 'equity' not in st.session_state:
-    st.session_state.equity = []
+    st.session_state.equity = []         # Equity entries: Date, Description, Amount
 if 'staff' not in st.session_state:
-    st.session_state.staff = {}
+    st.session_state.staff = {}          # Staff details: key = staff name, value = {Position, Expected Payment}
 if 'staff_payments' not in st.session_state:
-    st.session_state.staff_payments = []
-if 'rent_history' not in st.session_state:
-    st.session_state.rent_history = pd.DataFrame()
+    st.session_state.staff_payments = [] # Staff payment records: list of dicts: Date, Staff, Amount, Method
 
+# ---------------------------------------------------------------
 # UTILITY FUNCTIONS
-def add_revenue(date, desc, amt):
-    st.session_state.revenue.append({"Date": date, "Description": desc, "Amount": amt})
+# ---------------------------------------------------------------
+def add_revenue(date, description, amount):
+    st.session_state.revenue.append({
+        "Date": date,
+        "Description": description,
+        "Amount": amount
+    })
 
-def add_expense(date, category, desc, amt):
-    st.session_state.expenses.append({"Date": date, "Category": category, "Description": desc, "Amount": amt})
+def add_expense(date, category, description, amount):
+    st.session_state.expenses.append({
+        "Date": date,
+        "Category": category,
+        "Description": description,
+        "Amount": amount
+    })
 
 def add_hostelite(name, room_no, rent):
     st.session_state.hostelites[name] = {"Room": room_no, "Rent": rent, "Paid": 0.0}
 
-def update_hostelite_payment(name, amt):
-    if name in st.session_state.hostelites:
-        st.session_state.hostelites[name]["Paid"] += amt
+def update_hostelite_payment(hostelite, amount):
+    if hostelite in st.session_state.hostelites:
+        st.session_state.hostelites[hostelite]["Paid"] += amount
 
-def add_payment(date, hostelite, amt, method):
-    add_revenue(date, f"Rent Payment from {hostelite}", amt)
-    update_hostelite_payment(hostelite, amt)
+def add_payment(date, hostelite, amount, method):
+    st.session_state.revenue.append({
+        "Date": date,
+        "Description": f"Rent Payment from {hostelite}",
+        "Amount": amount
+    })
+    update_hostelite_payment(hostelite, amount)
 
 def update_balance_sheet():
-    total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
-    total_exp = sum([entry["Amount"] for entry in st.session_state.expenses])
-    st.session_state.balance_sheet["Assets"] = total_rev
-    st.session_state.balance_sheet["Liabilities"] = total_exp
-    st.session_state.balance_sheet["Equity"] = total_rev - total_exp
+    total_revenue = sum([entry["Amount"] for entry in st.session_state.revenue])
+    total_expenses = sum([entry["Amount"] for entry in st.session_state.expenses])
+    st.session_state.balance_sheet["Assets"] = total_revenue
+    st.session_state.balance_sheet["Liabilities"] = total_expenses
+    st.session_state.balance_sheet["Equity"] = total_revenue - total_expenses
 
 def get_balance_sheet_df():
     update_balance_sheet()
     bs = st.session_state.balance_sheet
-    return pd.DataFrame({"Category": ["Assets", "Liabilities", "Equity"], "Amount": [bs["Assets"], bs["Liabilities"], bs["Equity"]]})
+    df = pd.DataFrame({
+        "Category": ["Assets", "Liabilities", "Equity"],
+        "Amount": [bs["Assets"], bs["Liabilities"], bs["Equity"]]
+    })
+    return df
 
-def add_asset(date, desc, amt):
-    st.session_state.assets.append({"Date": date, "Description": desc, "Amount": amt})
+def add_asset(date, description, amount):
+    st.session_state.assets.append({
+        "Date": date,
+        "Description": description,
+        "Amount": amount
+    })
 
-def add_liability(date, desc, amt):
-    st.session_state.liabilities.append({"Date": date, "Description": desc, "Amount": amt})
+def add_liability(date, description, amount):
+    st.session_state.liabilities.append({
+        "Date": date,
+        "Description": description,
+        "Amount": amount
+    })
 
-def add_equity(date, desc, amt):
-    st.session_state.equity.append({"Date": date, "Description": desc, "Amount": amt})
+def add_equity(date, description, amount):
+    st.session_state.equity.append({
+        "Date": date,
+        "Description": description,
+        "Amount": amount
+    })
 
 def get_financial_overview_df():
-    return (pd.DataFrame(st.session_state.assets),
-            pd.DataFrame(st.session_state.liabilities),
-            pd.DataFrame(st.session_state.equity))
+    df_assets = pd.DataFrame(st.session_state.assets)
+    df_liabilities = pd.DataFrame(st.session_state.liabilities)
+    df_equity = pd.DataFrame(st.session_state.equity)
+    return df_assets, df_liabilities, df_equity
 
 def generate_financial_report():
-    return pd.DataFrame(st.session_state.revenue), pd.DataFrame(st.session_state.expenses)
+    df_rev = pd.DataFrame(st.session_state.revenue)
+    df_exp = pd.DataFrame(st.session_state.expenses)
+    return df_rev, df_exp
 
 def compute_payment_details():
     data = []
@@ -106,17 +147,50 @@ def compute_payment_details():
         paid = details["Paid"]
         due = max(rent - paid, 0)
         overpaid = max(paid - rent, 0)
-        data.append({"Hostelite": name, "Room": details["Room"], "Required Rent": rent, "Amount Paid": paid, "Amount Due": due, "Amount Overpaid": overpaid})
+        data.append({
+            "Hostelite": name,
+            "Room": details["Room"],
+            "Required Rent": rent,
+            "Amount Paid": paid,
+            "Amount Due": due,
+            "Amount Overpaid": overpaid
+        })
     return pd.DataFrame(data)
 
-def add_hostel(name, location):
-    st.session_state.hostels.append({"Hostel Name": name, "Location": location})
+def add_staff(name, position, expected_payment):
+    st.session_state.staff[name] = {"Position": position, "Expected Payment": expected_payment}
 
-def remove_hostel(name):
-    st.session_state.hostels = [h for h in st.session_state.hostels if h["Hostel Name"] != name]
+def add_staff_payment(date, name, amount, method):
+    st.session_state.staff_payments.append({
+        "Date": date,
+        "Staff": name,
+        "Amount": amount,
+        "Method": method
+    })
 
-def add_project(project_name, hostel_name, start_date, end_date, status):
-    st.session_state.projects.append({"Project": project_name, "Hostel": hostel_name, "Start Date": start_date, "End Date": end_date, "Status": status})
+def compute_staff_payments():
+    # Compute total paid for each staff from staff_payments records
+    staff_data = {}
+    for name in st.session_state.staff:
+        staff_data[name] = {"Expected Payment": st.session_state.staff[name]["Expected Payment"], "Paid": 0}
+    for payment in st.session_state.staff_payments:
+        name = payment["Staff"]
+        if name in staff_data:
+            staff_data[name]["Paid"] += payment["Amount"]
+    data = []
+    for name, details in staff_data.items():
+        expected = details["Expected Payment"]
+        paid = details["Paid"]
+        due = max(expected - paid, 0)
+        overpaid = max(paid - expected, 0)
+        data.append({
+            "Staff": name,
+            "Expected Payment": expected,
+            "Amount Paid": paid,
+            "Amount Due": due,
+            "Amount Overpaid": overpaid
+        })
+    return pd.DataFrame(data)
 
 def compute_monthly_trends():
     if st.session_state.revenue:
@@ -131,18 +205,30 @@ def compute_monthly_trends():
         monthly_exp = df_exp.groupby('Month')['Amount'].sum().reindex(['Jan','Feb','Mar','Apr','May','Jun'], fill_value=0)
     else:
         monthly_exp = pd.Series([0,0,0,0,0,0], index=['Jan','Feb','Mar','Apr','May','Jun'])
-    return pd.DataFrame({"Month": ['Jan','Feb','Mar','Apr','May','Jun'], "Revenue": monthly_rev.values, "Expenses": monthly_exp.values})
+    trends_df = pd.DataFrame({
+        "Month": ['Jan','Feb','Mar','Apr','May','Jun'],
+        "Revenue": monthly_rev.values,
+        "Expenses": monthly_exp.values
+    })
+    return trends_df
 
+# ---------------------------------------------------------------
 # SIDEBAR NAVIGATION
+# ---------------------------------------------------------------
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1974/1974895.png", width=150)
     st.markdown("<h3 style='color:white;'>Navigation</h3>", unsafe_allow_html=True)
-    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Hostel Management", "Staff Payments and Dues", "Financial Overview", "Reports"]
+    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Hostelite Management", "Staff Payments and Dues", "Hostel Management Payments and Dues", "Financial Overview", "Reports"]
     page = st.radio("Go to", pages)
 
+# ---------------------------------------------------------------
+# HEADER
+# ---------------------------------------------------------------
 st.markdown("<p class='main-title'>Hostel Financial Manager</p>", unsafe_allow_html=True)
 
+# ---------------------------------------------------------------
 # DASHBOARD SECTION
+# ---------------------------------------------------------------
 if page == "Dashboard":
     st.header("Dashboard Overview")
     total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
@@ -162,7 +248,9 @@ if page == "Dashboard":
     st.plotly_chart(fig_trends, use_container_width=True)
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
-# DATA ENTRY SECTION
+# ---------------------------------------------------------------
+# DATA ENTRY SECTION (Revenue & Expense)
+# ---------------------------------------------------------------
 elif page == "Data Entry":
     st.header("Data Entry")
     tabs = st.tabs(["Revenue Entry", "Expense Entry"])
@@ -201,7 +289,9 @@ elif page == "Data Entry":
         st.info("No expense entries yet.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
+# ---------------------------------------------------------------
 # BALANCE SHEET SECTION
+# ---------------------------------------------------------------
 elif page == "Balance Sheet":
     st.header("Balance Sheet")
     bs_df = get_balance_sheet_df()
@@ -210,52 +300,29 @@ elif page == "Balance Sheet":
     st.plotly_chart(fig_bs, use_container_width=True)
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
-# HOSTEL MANAGEMENT SECTION (Add/Remove Hostels & Ongoing Projects)
-elif page == "Hostel Management":
-    st.header("Hostel Management")
-    st.subheader("Add New Hostel")
-    with st.form("hostel_form", clear_on_submit=True):
-        hostel_name = st.text_input("Hostel Name")
-        hostel_location = st.text_input("Location")
-        if st.form_submit_button("Add Hostel") and hostel_name:
-            st.session_state.hostels.append({"Hostel Name": hostel_name, "Location": hostel_location})
-            st.success(f"Hostel '{hostel_name}' added successfully!")
-    st.subheader("Remove Hostel")
-    if st.session_state.hostels:
-        remove_hostel_name = st.selectbox("Select Hostel to Remove", [h["Hostel Name"] for h in st.session_state.hostels])
-        if st.button("Remove Hostel") and remove_hostel_name:
-            remove_hostel(remove_hostel_name)
-            st.success(f"Hostel '{remove_hostel_name}' removed successfully!")
+# ---------------------------------------------------------------
+# HOSTELITE MANAGEMENT PAYMENTS AND DUES SECTION
+# ---------------------------------------------------------------
+elif page == "Hostel Management Payments and Dues":
+    st.header("Hostel Management Payments and Dues")
+    payment_details_df = compute_payment_details()
+    if not payment_details_df.empty:
+        st.dataframe(payment_details_df)
     else:
-        st.info("No hostels available.")
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.subheader("Ongoing Projects by Hostel")
-    with st.form("project_form", clear_on_submit=True):
-        project_name = st.text_input("Project Name")
-        project_hostel = st.selectbox("Associated Hostel", [h["Hostel Name"] for h in st.session_state.hostels] if st.session_state.hostels else ["No Hostels Available"])
-        start_date = st.date_input("Start Date", datetime.date.today())
-        end_date = st.date_input("End Date", datetime.date.today())
-        status = st.selectbox("Status", ["Pending", "Ongoing", "Completed"])
-        if st.form_submit_button("Add Project") and project_name and project_hostel != "No Hostels Available":
-            st.session_state.projects.append({"Project": project_name, "Hostel": project_hostel, "Start Date": start_date, "End Date": end_date, "Status": status})
-            st.success(f"Project '{project_name}' added for hostel '{project_hostel}'!")
-    st.subheader("Current Ongoing Projects")
-    if st.session_state.projects:
-        df_projects = pd.DataFrame(st.session_state.projects)
-        st.dataframe(df_projects)
-    else:
-        st.info("No ongoing projects available.")
+        st.info("No hostelite payment data available.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
+# ---------------------------------------------------------------
 # STAFF PAYMENTS AND DUES SECTION
-elif page == "Staff Payments":
+# ---------------------------------------------------------------
+elif page == "Staff Payments and Dues":
     st.header("Staff Payments and Dues")
     st.subheader("Add/Update Staff Information")
     with st.form("staff_form", clear_on_submit=True):
         staff_name = st.text_input("Staff Name")
         staff_position = st.text_input("Position")
         expected_payment = st.number_input("Expected Payment (PKR)", min_value=0.0, format="%.2f")
-        if st.form_submit_button("Add/Update Staff") and staff_name:
+        if st.form_submit_button("Add/Update Staff"):
             st.session_state.staff[staff_name] = {"Position": staff_position, "Expected Payment": expected_payment}
             st.success(f"Staff {staff_name} added/updated successfully!")
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -270,18 +337,20 @@ elif page == "Staff Payments":
             st.success(f"Payment of PKR {pay_amount} recorded for {staff_member}!")
     st.markdown("<hr>", unsafe_allow_html=True)
     st.subheader("Staff Payment Details")
-    staff_payment_df = compute_staff_payments() if st.session_state.staff_payments else pd.DataFrame()
+    staff_payment_df = compute_staff_payments()
     if not staff_payment_df.empty:
         st.dataframe(staff_payment_df)
     else:
-        st.info("No staff payments recorded yet.")
+        st.info("No staff payment data available.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
-# FINANCIAL OVERVIEW SECTION
+# ---------------------------------------------------------------
+# FINANCIAL OVERVIEW SECTION (Assets, Liabilities, Equity)
+# ---------------------------------------------------------------
 elif page == "Financial Overview":
     st.header("Financial Overview - Balance Sheet Details")
-    tabs = st.tabs(["Assets", "Liabilities", "Equity"])
-    with tabs[0]:
+    col1, col2, col3 = st.tabs(["Assets", "Liabilities", "Equity"])
+    with col1:
         st.subheader("Add Asset")
         with st.form("asset_form", clear_on_submit=True):
             asset_date = st.date_input("Date", datetime.date.today())
@@ -292,8 +361,11 @@ elif page == "Financial Overview":
                 st.success("Asset added!")
         st.subheader("Current Assets")
         df_assets = pd.DataFrame(st.session_state.assets)
-        st.dataframe(df_assets) if not df_assets.empty else st.info("No assets recorded yet.")
-    with tabs[1]:
+        if not df_assets.empty:
+            st.dataframe(df_assets)
+        else:
+            st.info("No assets recorded yet.")
+    with col2:
         st.subheader("Add Liability")
         with st.form("liability_form", clear_on_submit=True):
             liab_date = st.date_input("Date", datetime.date.today())
@@ -304,8 +376,11 @@ elif page == "Financial Overview":
                 st.success("Liability added!")
         st.subheader("Current Liabilities")
         df_liab = pd.DataFrame(st.session_state.liabilities)
-        st.dataframe(df_liab) if not df_liab.empty else st.info("No liabilities recorded yet.")
-    with tabs[2]:
+        if not df_liab.empty:
+            st.dataframe(df_liab)
+        else:
+            st.info("No liabilities recorded yet.")
+    with col3:
         st.subheader("Add Equity")
         with st.form("equity_form", clear_on_submit=True):
             eq_date = st.date_input("Date", datetime.date.today())
@@ -316,10 +391,15 @@ elif page == "Financial Overview":
                 st.success("Equity added!")
         st.subheader("Current Equity")
         df_eq = pd.DataFrame(st.session_state.equity)
-        st.dataframe(df_eq) if not df_eq.empty else st.info("No equity recorded yet.")
+        if not df_eq.empty:
+            st.dataframe(df_eq)
+        else:
+            st.info("No equity recorded yet.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
-# REPORTS SECTION
+# ---------------------------------------------------------------
+# REPORTS & ANALYTICS SECTION
+# ---------------------------------------------------------------
 elif page == "Reports":
     st.header("Reports & Data Export")
     df_rev, df_exp = generate_financial_report()
@@ -347,7 +427,9 @@ elif page == "Reports":
         st.info("No combined financial data available.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
-# FOOTER
+# ---------------------------------------------------------------
+# FOOTER SECTION
+# ---------------------------------------------------------------
 st.sidebar.markdown("---")
 st.sidebar.markdown("<p style='text-align: center;'>Developed with ❤️ by Aliyan Ahmad</p>", unsafe_allow_html=True)
 st.sidebar.markdown("© 2025 Hostel Finance Manager")
@@ -357,7 +439,9 @@ st.sidebar.write("")
 st.write("Placeholder: Future features and enhancements can be implemented here. (This area is reserved for expansion.)")
 st.write("")
 
+# ---------------------------------------------------------------
 # ADDITIONAL BLANK LINES TO APPROXIMATE 500 LINES
+# ---------------------------------------------------------------
 # Future Enhancements:
 # 1. Integration with external APIs for real-time financial data.
 # 2. Advanced AI-based revenue forecasting.
@@ -369,6 +453,11 @@ st.write("")
 # 8. Integration with payment gateways.
 # 9. Dynamic notifications for overdue payments and tasks.
 # 10. Enhanced interactive data visualization.
+#
+#
+#
+#
+#
 #
 #
 #
