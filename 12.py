@@ -449,24 +449,7 @@ st.write("")
 # 4. Multi-hostel management and consolidated reporting.
 # 5. Mobile-
 
-    st.header("Hostelite Management")
-    st.subheader("Add/Update Hostelite Details")
-    with st.form("hostelite_form", clear_on_submit=True):
-        name = st.text_input("Hostelite Name")
-        room_no = st.text_input("Allocated Room Number")
-        rent = st.number_input("Required Rent (PKR)", min_value=0.0, format="%.2f")
-        paid = st.number_input("Amount Paid (PKR)", min_value=0.0, format="%.2f")
-        if st.form_submit_button("Add/Update Hostelite"):
-            add_hostelite(name, room_no, rent)
-            st.session_state.hostelites[name]["Paid"] = paid
-            st.success(f"Hostelite {name} added/updated successfully!")
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.subheader("Current Hostelite Records")
-    if st.session_state.hostelites:
-        hostelite_df = pd.DataFrame.from_dict(st.session_state.hostelites, orient='index').reset_index().rename(columns={'index': 'Hostelite'})
-        hostelite_df["Amount Due"] = hostelite_df.apply(lambda row: max(row["Rent"] - row["Paid"], 0), axis=1)
-        hostelite_df["Amount Overpaid"] = hostelite_df.apply(lambda row: max(row["Paid"] - row["Rent"], 0), axis=1)
-        st.dataframe(hostelite_df[["Hostelite", "Room", "Rent", "Paid", "Amount Due", "Amount Overpaid"]])
+
     else:
         st.info("No hostelite records available.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
