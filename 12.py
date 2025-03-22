@@ -1,11 +1,11 @@
 #################################################################
-# Hostel Financial Management Dashboard with Balance Sheet &    
-# Rent Collection Forecasting                                  
-# Developed using Streamlit’s Built-in UI Components              
-# This application enables hostel owners to analyze financial    
-# data, manage hostelites, track revenue and expenses, view a      
-# dynamic balance sheet, forecast rent collection, and plan        
-# for future enhancements.                                         
+# Hostel Financial Management Dashboard with Balance Sheet,     #
+# Rent Collection Forecasting, and Room Assignments              #
+# Developed using Streamlit’s Built-in UI Components               #
+# This application enables hostel owners to analyze financial      #
+# data, manage hostelites, track revenue and expenses, view a        #
+# dynamic balance sheet, forecast rent collection, and manage        #
+# room assignments. It also reserves space for future enhancements.  #
 #################################################################
 
 import streamlit as st
@@ -26,9 +26,9 @@ st.markdown("""
         body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .main-title { font-size: 42px; font-weight: 700; color: #003366; text-align: center; margin-bottom: 20px; }
         .sidebar .sidebar-content { background-color: #004b8d; color: white; }
-        .metric-box { background: #fff; padding: 20px; border-radius: 10px; text-align: center; 
+        .metric-box { background: #fff; padding: 20px; border-radius: 10px; text-align: center;
                       box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .stButton>button { background-color: #0051a2; color: white; border-radius: 8px; 
+        .stButton>button { background-color: #0051a2; color: white; border-radius: 8px;
                            padding: 8px 16px; font-size: 16px; border: none; }
         .stTextInput label, .stNumberInput label, .stDateInput label { font-weight: bold; color: #003366; }
         .dataframe th, .dataframe td { padding: 8px; }
@@ -39,17 +39,19 @@ st.markdown("""
 # INITIALIZE SESSION STATE DATA STRUCTURES
 # ---------------------------------------------------------------
 if 'revenue' not in st.session_state:
-    st.session_state.revenue = []  # Each revenue entry: Date, Description, Amount
+    st.session_state.revenue = []  # Revenue entries: Date, Description, Amount
 if 'expenses' not in st.session_state:
-    st.session_state.expenses = []  # Each expense entry: Date, Category, Description, Amount
+    st.session_state.expenses = []  # Expense entries: Date, Category, Description, Amount
 if 'balance_sheet' not in st.session_state:
     st.session_state.balance_sheet = {"Assets": 0.0, "Liabilities": 0.0, "Equity": 0.0}
 if 'hostelites' not in st.session_state:
-    st.session_state.hostelites = {}  # Dict: key = hostelite name, value = {Room, Rent, Paid}
+    st.session_state.hostelites = {}  # Hostelite data: key=name, value={Room, Rent, Paid}
 if 'tasks' not in st.session_state:
-    st.session_state.tasks = []  # List of tasks: {Task, Assigned To, Due Date}
+    st.session_state.tasks = []      # Task scheduling: list of dicts {Task, Assigned To, Due Date}
 if 'rent_history' not in st.session_state:
     st.session_state.rent_history = pd.DataFrame()  # DataFrame for historical rent data
+if 'room_assignments' not in st.session_state:
+    st.session_state.room_assignments = []  # List for room assignments
 
 # ---------------------------------------------------------------
 # UTILITY FUNCTIONS
@@ -106,7 +108,6 @@ def generate_financial_report():
     return df_rev, df_exp
 
 def perform_rent_forecast():
-    # Check if rent_history is a DataFrame and if it is empty
     if not isinstance(st.session_state.rent_history, pd.DataFrame) or st.session_state.rent_history.empty:
         months = np.arange(1, 13).reshape(-1, 1)
         rents = np.random.randint(50000, 80000, size=12)
@@ -121,13 +122,45 @@ def perform_rent_forecast():
     forecast_df = pd.DataFrame({"Month": future_months.flatten(), "Forecasted Rent": forecast})
     return forecast_df
 
+def add_room_assignment(room_no, occupant, required_payment, amount_paid):
+    due = required_payment - amount_paid
+    if due < 0:
+        status = "Overpaid"
+    elif due == 0:
+        status = "Cleared"
+    else:
+        status = "Due"
+    st.session_state.room_assignments.append({
+        "Room No": room_no,
+        "Occupant": occupant,
+        "Required Payment": required_payment,
+        "Amount Paid": amount_paid,
+        "Status": status
+    })
+
+def update_room_assignment(index, room_no, occupant, required_payment, amount_paid):
+    due = required_payment - amount_paid
+    if due < 0:
+        status = "Overpaid"
+    elif due == 0:
+        status = "Cleared"
+    else:
+        status = "Due"
+    st.session_state.room_assignments[index] = {
+        "Room No": room_no,
+        "Occupant": occupant,
+        "Required Payment": required_payment,
+        "Amount Paid": amount_paid,
+        "Status": status
+    }
+
 # ---------------------------------------------------------------
 # SIDEBAR NAVIGATION
 # ---------------------------------------------------------------
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1974/1974895.png", width=150)
     st.markdown("<h3 style='color:white;'>Navigation</h3>", unsafe_allow_html=True)
-    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Rent Forecasting", "Reports", "Task Scheduling"]
+    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Rent Forecasting", "Room Assignments", "Reports", "Task Scheduling"]
     page = st.radio("Go to", pages)
 
 # ---------------------------------------------------------------
@@ -214,7 +247,7 @@ elif page == "Balance Sheet":
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# RENT FORECASTING SECTION (New Feature)
+# RENT FORECASTING SECTION
 # ---------------------------------------------------------------
 elif page == "Rent Forecasting":
     st.header("Rent Collection Forecasting")
@@ -234,6 +267,39 @@ elif page == "Rent Forecasting":
         st.plotly_chart(fig_forecast, use_container_width=True)
     else:
         st.info("Generate dummy rent history to see forecast results.")
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
+
+# ---------------------------------------------------------------
+# ROOM ASSIGNMENTS SECTION (New Feature)
+# ---------------------------------------------------------------
+elif page == "Room Assignments":
+    st.header("Room Assignments Management")
+    with st.form("room_assignment_form", clear_on_submit=True):
+        room_no = st.text_input("Room Number")
+        occupant = st.text_input("Occupant Name")
+        required_payment = st.number_input("Required Payment (PKR)", min_value=0.0, format="%.2f")
+        amount_paid = st.number_input("Amount Paid (PKR)", min_value=0.0, format="%.2f")
+        if st.form_submit_button("Add Room Assignment") and room_no and occupant:
+            add_room_assignment(room_no, occupant, required_payment, amount_paid)
+            st.success(f"Room {room_no} assigned to {occupant} updated!")
+    st.markdown("### Current Room Assignments")
+    if st.session_state.room_assignments:
+        df_rooms = pd.DataFrame(st.session_state.room_assignments)
+        st.dataframe(df_rooms)
+        # Option to update an existing assignment
+        st.subheader("Update Room Assignment")
+        index_to_update = st.number_input("Enter the index of the assignment to update (starting from 0)", min_value=0, max_value=len(st.session_state.room_assignments)-1, step=1)
+        if st.session_state.room_assignments:
+            with st.form("update_room_form", clear_on_submit=True):
+                new_room_no = st.text_input("New Room Number", value=df_rooms.iloc[index_to_update]["Room No"])
+                new_occupant = st.text_input("New Occupant Name", value=df_rooms.iloc[index_to_update]["Occupant"])
+                new_required_payment = st.number_input("New Required Payment (PKR)", min_value=0.0, value=float(df_rooms.iloc[index_to_update]["Required Payment"]), format="%.2f")
+                new_amount_paid = st.number_input("New Amount Paid (PKR)", min_value=0.0, value=float(df_rooms.iloc[index_to_update]["Amount Paid"]), format="%.2f")
+                if st.form_submit_button("Update Assignment"):
+                    update_room_assignment(index_to_update, new_room_no, new_occupant, new_required_payment, new_amount_paid)
+                    st.success("Room assignment updated!")
+    else:
+        st.info("No room assignments available.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
@@ -301,20 +367,18 @@ st.write("Placeholder: Future features and enhancements can be implemented here.
 # ---------------------------------------------------------------
 # ADDITIONAL BLANK LINES TO APPROXIMATE 500 LINES
 # ---------------------------------------------------------------
-# Future enhancements:
+# The following lines serve as placeholders for future expansion.
+# Future enhancements may include:
 # 1. Integration with external APIs for real-time financial data.
 # 2. Advanced AI-based revenue forecasting.
 # 3. User authentication and role management.
-# 4. Multi-hostel management.
+# 4. Multi-hostel management and consolidated reporting.
 # 5. Mobile-responsive design improvements.
-# 6. Detailed audit logs for transactions.
-# 7. Custom reporting templates.
+# 6. Detailed audit logs for financial transactions.
+# 7. Custom reporting templates for stakeholders.
 # 8. Integration with payment gateways.
-# 9. Dynamic notifications for overdue payments.
+# 9. Dynamic notifications for overdue payments and tasks.
 # 10. Enhanced interactive data visualization.
-#
-#
-#
 #
 #
 #
