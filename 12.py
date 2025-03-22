@@ -1,11 +1,11 @@
 #################################################################
 # Hostel Financial Management Dashboard with Balance Sheet,     #
-# Hostelite Management, and Payment Schedules                    #
-# Developed using Streamlit’s Built-in UI Components               #
+# Rent Forecasting, Hostelite Management, and Financial Overview   #
+# Developed using Streamlit’s Built-in UI Components                 #
 # This application enables hostel owners to manage financial data,   #
-# track revenue & expenses, view a dynamic balance sheet, manage     #
-# hostel resident details, and generate payment schedules for each   #
-# hostel. It also reserves space for future enhancements.             #
+# track revenue & expenses, view a dynamic balance sheet, and          #
+# manage hostel resident details including room assignments and        #
+# payment status. It also reserves space for future enhancements.       #
 #################################################################
 
 import streamlit as st
@@ -39,21 +39,21 @@ st.markdown("""
 # INITIALIZE SESSION STATE DATA STRUCTURES
 # ---------------------------------------------------------------
 if 'revenue' not in st.session_state:
-    st.session_state.revenue = []  # List of revenue entries: Date, Description, Amount
+    st.session_state.revenue = []  # Revenue entries: Date, Description, Amount
 if 'expenses' not in st.session_state:
-    st.session_state.expenses = []  # List of expense entries: Date, Category, Description, Amount
+    st.session_state.expenses = []  # Expense entries: Date, Category, Description, Amount
 if 'balance_sheet' not in st.session_state:
     st.session_state.balance_sheet = {"Assets": 0.0, "Liabilities": 0.0, "Equity": 0.0}
 if 'hostelites' not in st.session_state:
-    st.session_state.hostelites = {}  # Dict: key = hostelite name, value = {Room, Rent, Paid}
+    st.session_state.hostelites = {}  # Hostelite data: key = name, value = {Room, Rent, Paid}
 if 'rent_history' not in st.session_state:
-    st.session_state.rent_history = pd.DataFrame()  # DataFrame for historical rent data
+    st.session_state.rent_history = pd.DataFrame()  # Historical rent data for forecasting
 if 'assets' not in st.session_state:
-    st.session_state.assets = []       # List of asset entries: Date, Description, Amount
+    st.session_state.assets = []       # Asset entries: Date, Description, Amount
 if 'liabilities' not in st.session_state:
-    st.session_state.liabilities = []  # List of liability entries: Date, Description, Amount
+    st.session_state.liabilities = []  # Liability entries: Date, Description, Amount
 if 'equity' not in st.session_state:
-    st.session_state.equity = []         # List of equity entries: Date, Description, Amount
+    st.session_state.equity = []         # Equity entries: Date, Description, Amount
 if 'room_assignments' not in st.session_state:
     st.session_state.room_assignments = []  # For future expansion
 
@@ -170,13 +170,34 @@ def compute_payment_details():
         })
     return pd.DataFrame(data)
 
+def compute_monthly_trends():
+    # Aggregate monthly revenue and expenses from actual entries; default to 0 if no data.
+    if st.session_state.revenue:
+        df_rev = pd.DataFrame(st.session_state.revenue)
+        df_rev['Month'] = pd.to_datetime(df_rev['Date']).dt.strftime('%b')
+        monthly_rev = df_rev.groupby('Month')['Amount'].sum().reindex(['Jan','Feb','Mar','Apr','May','Jun'], fill_value=0)
+    else:
+        monthly_rev = pd.Series([0,0,0,0,0,0], index=['Jan','Feb','Mar','Apr','May','Jun'])
+    if st.session_state.expenses:
+        df_exp = pd.DataFrame(st.session_state.expenses)
+        df_exp['Month'] = pd.to_datetime(df_exp['Date']).dt.strftime('%b')
+        monthly_exp = df_exp.groupby('Month')['Amount'].sum().reindex(['Jan','Feb','Mar','Apr','May','Jun'], fill_value=0)
+    else:
+        monthly_exp = pd.Series([0,0,0,0,0,0], index=['Jan','Feb','Mar','Apr','May','Jun'])
+    trends_df = pd.DataFrame({
+        "Month": ['Jan','Feb','Mar','Apr','May','Jun'],
+        "Revenue": monthly_rev.values,
+        "Expenses": monthly_exp.values
+    })
+    return trends_df
+
 # ---------------------------------------------------------------
 # SIDEBAR NAVIGATION
 # ---------------------------------------------------------------
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1974/1974895.png", width=150)
     st.markdown("<h3 style='color:white;'>Navigation</h3>", unsafe_allow_html=True)
-    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Hostelite Management", "New Hostels & Payment Schedules", "Financial Overview", "Reports"]
+    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Rent Forecasting", "Hostelite Management", "Financial Overview", "Reports"]
     page = st.radio("Go to", pages)
 
 # ---------------------------------------------------------------
@@ -185,7 +206,7 @@ with st.sidebar:
 st.markdown("<p class='main-title'>Hostel Financial Manager</p>", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# DASHBOARD SECTION
+# DASHBOARD SECTION (Modified)
 # ---------------------------------------------------------------
 if page == "Dashboard":
     st.header("Dashboard Overview")
@@ -201,13 +222,10 @@ if page == "Dashboard":
         st.markdown(f"<div class='metric-box'><h4>Overall Balance</h4><h2>PKR {overall_balance:,.2f}</h2></div>", unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
     st.subheader("Monthly Trends")
-    dummy_data = pd.DataFrame({
-        "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-        "Revenue": np.random.randint(50000, 80000, 6),
-        "Expenses": np.random.randint(30000, 60000, 6)
-    })
-    fig = px.line(dummy_data, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
-    st.plotly_chart(fig, use_container_width=True)
+    trends_df = compute_monthly_trends()
+    # The graph will display actual values, or 0 if no data exists, and update dynamically.
+    fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
+    st.plotly_chart(fig_trends, use_container_width=True)
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
@@ -263,12 +281,41 @@ elif page == "Balance Sheet":
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
+# RENT FORECASTING SECTION
+# ---------------------------------------------------------------
+elif page == "Rent Forecasting":
+    st.header("Rent Collection Forecasting")
+    st.write("Forecast future rent collection based on historical data.")
+    if st.button("Generate Dummy Rent History"):
+        months = np.arange(1, 13)
+        rents = np.random.randint(50000, 80000, size=12)
+        st.session_state.rent_history = pd.DataFrame({"Month": months, "Rent": rents})
+        st.success("Dummy rent history generated!")
+    if isinstance(st.session_state.rent_history, pd.DataFrame) and not st.session_state.rent_history.empty:
+        st.write("### Historical Rent Data")
+        st.dataframe(st.session_state.rent_history)
+        forecast_df = perform_rent_forecast()
+        st.write("### Forecasted Rent Collection")
+        st.dataframe(forecast_df)
+        fig_forecast = px.line(forecast_df, x="Month", y="Forecasted Rent", markers=True, title="Rent Forecast")
+        st.plotly_chart(fig_forecast, use_container_width=True)
+    else:
+        st.info("Generate dummy rent history to see forecast results.")
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
+    st.subheader("Hostelite Payment Details")
+    payment_details_df = compute_payment_details()
+    if not payment_details_df.empty:
+        st.dataframe(payment_details_df)
+    else:
+        st.info("No hostelite payment data available.")
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
+
+# ---------------------------------------------------------------
 # HOSTELITE MANAGEMENT SECTION (Organized List Format)
 # ---------------------------------------------------------------
 elif page == "Hostelite Management":
     st.header("Hostelite Management")
-    st.subheader("Hostelite Details")
-    # Form to add/update hostelite details
+    st.subheader("Add/Update Hostelite Details")
     with st.form("hostelite_form", clear_on_submit=True):
         name = st.text_input("Hostelite Name")
         room_no = st.text_input("Allocated Room Number")
@@ -281,58 +328,12 @@ elif page == "Hostelite Management":
     st.markdown("<hr>", unsafe_allow_html=True)
     st.subheader("Current Hostelite Records")
     if st.session_state.hostelites:
-        hostelite_list = ""
-        for name, details in st.session_state.hostelites.items():
-            status = compute_payment_details().set_index("Hostelite").loc[name]
-            hostelite_list += f"- **Name:** {name} | **Room:** {details['Room']} | **Required Rent:** PKR {details['Rent']:,.2f} | **Paid:** PKR {details['Paid']:,.2f} | **Status:** {compute_payment_details().set_index('Hostelite').loc[name]['Amount Due']} due, {compute_payment_details().set_index('Hostelite').loc[name]['Amount Overpaid']} overpaid\n"
-        st.markdown(hostelite_list)
+        hostelite_df = pd.DataFrame.from_dict(st.session_state.hostelites, orient='index').reset_index().rename(columns={'index': 'Hostelite'})
+        hostelite_df["Amount Due"] = hostelite_df.apply(lambda row: max(row["Rent"] - row["Paid"], 0), axis=1)
+        hostelite_df["Amount Overpaid"] = hostelite_df.apply(lambda row: max(row["Paid"] - row["Rent"], 0), axis=1)
+        st.dataframe(hostelite_df)
     else:
         st.info("No hostelite records available.")
-    st.markdown("<br>" * 2, unsafe_allow_html=True)
-
-# ---------------------------------------------------------------
-# NEW HOSTELS & PAYMENT SCHEDULES SECTION
-# ---------------------------------------------------------------
-elif page == "New Hostels & Payment Schedules":
-    st.header("New Hostels & Payment Schedules")
-    st.subheader("Add New Hostel")
-    with st.form("new_hostel_form", clear_on_submit=True):
-        hostel_name = st.text_input("Hostel Name")
-        location = st.text_input("Location")
-        total_rooms = st.number_input("Total Number of Rooms", min_value=1, step=1)
-        monthly_rent = st.number_input("Standard Monthly Rent per Room (PKR)", min_value=0.0, format="%.2f")
-        if st.form_submit_button("Add Hostel"):
-            st.success(f"Hostel '{hostel_name}' at {location} added with {total_rooms} rooms.")
-            # For simplicity, we do not store this data persistently in this demo.
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.subheader("Generate Payment Schedule")
-    with st.form("payment_schedule_form", clear_on_submit=True):
-        schedule_hostel = st.text_input("Enter Hostel Name for Payment Schedule")
-        num_rooms = st.number_input("Number of Rooms", min_value=1, step=1)
-        monthly_rent_per_room = st.number_input("Monthly Rent per Room (PKR)", min_value=0.0, format="%.2f")
-        schedule_months = st.number_input("Number of Months", min_value=1, step=1, value=12)
-        if st.form_submit_button("Generate Schedule"):
-            schedule = []
-            start_date = datetime.date.today().replace(day=1)
-            for room in range(1, int(num_rooms)+1):
-                room_schedule = {"Room": f"Room {room}", "Occupant": "Vacant", "Schedule": []}
-                for month in range(schedule_months):
-                    due_date = (start_date + pd.DateOffset(months=month)).date()
-                    room_schedule["Schedule"].append({
-                        "Month": due_date.strftime("%b %Y"),
-                        "Due Amount": monthly_rent_per_room,
-                        "Status": "Pending"
-                    })
-                schedule.append(room_schedule)
-            st.session_state.payment_schedule = schedule
-            st.success("Payment schedule generated!")
-    if "payment_schedule" in st.session_state:
-        st.subheader("Payment Schedule Details")
-        for room in st.session_state.payment_schedule:
-            st.markdown(f"**{room['Room']}** - Occupant: {room['Occupant']}")
-            schedule_df = pd.DataFrame(room["Schedule"])
-            st.dataframe(schedule_df)
-            st.markdown("---")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
@@ -428,7 +429,7 @@ st.sidebar.write("")
 st.sidebar.write("")
 
 st.write("Placeholder: Future features and enhancements can be implemented here. (This area is reserved for expansion.)")
-st.write("")
+st.write("")  # Single blank line for separation
 
 # ---------------------------------------------------------------
 # ADDITIONAL BLANK LINES TO APPROXIMATE 500 LINES
@@ -444,7 +445,6 @@ st.write("")
 # 8. Integration with payment gateways.
 # 9. Dynamic notifications for overdue payments and tasks.
 # 10. Enhanced interactive data visualization.
-#
 #
 #
 #
