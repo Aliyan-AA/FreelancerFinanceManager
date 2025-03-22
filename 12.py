@@ -1,13 +1,13 @@
 #################################################################
 # Hostel Financial Management Dashboard with Balance Sheet,     #
-# Hostelite Management, Staff Details & Staff Payments, and        #
-# Financial Overview                                             #
+# Hostelite Management, Staff Payments and Dues, and               #
+# Hostel Management Payments and Dues                           #
 # Developed using Streamlit’s Built-in UI Components               #
 # This application enables hostel owners to manage financial data,   #
 # track revenue & expenses, view a dynamic balance sheet, manage     #
-# hostel resident details including room assignments, and handle      #
-# staff information including payment methods. It also reserves      #
-# space for future enhancements.                                   #
+# hostel resident details including room assignments and payment     #
+# statuses, and handle staff payments with due tracking. It also       #
+# reserved space for future enhancements.                            #
 #################################################################
 
 import streamlit as st
@@ -41,13 +41,13 @@ st.markdown("""
 # INITIALIZE SESSION STATE DATA STRUCTURES
 # ---------------------------------------------------------------
 if 'revenue' not in st.session_state:
-    st.session_state.revenue = []  # Revenue entries: Date, Description, Amount (hostelite payments)
+    st.session_state.revenue = []  # List of revenue entries: Date, Description, Amount
 if 'expenses' not in st.session_state:
-    st.session_state.expenses = []  # Expense entries: Date, Category, Description, Amount
+    st.session_state.expenses = []  # List of expense entries: Date, Category, Description, Amount
 if 'balance_sheet' not in st.session_state:
     st.session_state.balance_sheet = {"Assets": 0.0, "Liabilities": 0.0, "Equity": 0.0}
 if 'hostelites' not in st.session_state:
-    st.session_state.hostelites = {}  # Hostelite data: key = hostelite name, value = {Room, Rent, Paid}
+    st.session_state.hostelites = {}  # Dict: key = hostelite name, value = {Room, Rent, Paid}
 if 'assets' not in st.session_state:
     st.session_state.assets = []       # Asset entries: Date, Description, Amount
 if 'liabilities' not in st.session_state:
@@ -57,7 +57,7 @@ if 'equity' not in st.session_state:
 if 'staff' not in st.session_state:
     st.session_state.staff = {}          # Staff details: key = staff name, value = {Position, Expected Payment}
 if 'staff_payments' not in st.session_state:
-    st.session_state.staff_payments = [] # Staff payment records: Date, Staff, Amount, Method
+    st.session_state.staff_payments = [] # Staff payment records: list of dicts: Date, Staff, Amount, Method
 
 # ---------------------------------------------------------------
 # UTILITY FUNCTIONS
@@ -160,10 +160,6 @@ def compute_payment_details():
 def add_staff(name, position, expected_payment):
     st.session_state.staff[name] = {"Position": position, "Expected Payment": expected_payment}
 
-def update_staff_payment(name, amount):
-    if name in st.session_state.staff:
-        st.session_state.staff[name]["Paid"] = st.session_state.staff[name].get("Paid", 0) + amount
-
 def add_staff_payment(date, name, amount, method):
     st.session_state.staff_payments.append({
         "Date": date,
@@ -171,12 +167,12 @@ def add_staff_payment(date, name, amount, method):
         "Amount": amount,
         "Method": method
     })
-    update_staff_payment(name, amount)
 
 def compute_staff_payments():
+    # Compute total paid for each staff from staff_payments records
     staff_data = {}
     for name in st.session_state.staff:
-        staff_data[name] = {"Expected Payment": st.session_state.staff[name]["Expected Payment"], "Paid": st.session_state.staff[name].get("Paid", 0)}
+        staff_data[name] = {"Expected Payment": st.session_state.staff[name]["Expected Payment"], "Paid": 0}
     for payment in st.session_state.staff_payments:
         name = payment["Staff"]
         if name in staff_data:
@@ -216,30 +212,13 @@ def compute_monthly_trends():
     })
     return trends_df
 
-def compute_combined_payments():
-    # Combine revenue and staff payments into a single DataFrame
-    df_rev = pd.DataFrame(st.session_state.revenue)
-    if not st.session_state.staff_payments:
-        df_staff = pd.DataFrame(columns=["Date", "Staff", "Amount", "Method"])
-    else:
-        df_staff = pd.DataFrame(st.session_state.staff_payments)
-        df_staff = df_staff.rename(columns={"Staff": "Description", "Amount": "Amount"})
-        df_staff["Type"] = "Staff Payment"
-    if not df_rev.empty:
-        df_rev["Type"] = "Hostelite Payment"
-    combined = pd.concat([df_rev, df_staff], ignore_index=True, sort=False)
-    # Convert Date column to datetime
-    combined["Date"] = pd.to_datetime(combined["Date"])
-    combined = combined.sort_values("Date")
-    return combined
-
 # ---------------------------------------------------------------
 # SIDEBAR NAVIGATION
 # ---------------------------------------------------------------
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1974/1974895.png", width=150)
     st.markdown("<h3 style='color:white;'>Navigation</h3>", unsafe_allow_html=True)
-    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Hostelite Management", "Staff Payments and Dues", "Financial Overview", "Reports"]
+    pages = ["Dashboard", "Data Entry", "Balance Sheet", "Hostelite Management", "Staff Payments and Dues", "Hostel Management Payments and Dues", "Financial Overview", "Reports"]
     page = st.radio("Go to", pages)
 
 # ---------------------------------------------------------------
@@ -248,7 +227,7 @@ with st.sidebar:
 st.markdown("<p class='main-title'>Hostel Financial Manager</p>", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# DASHBOARD SECTION WITH INTEGRATED PAYMENT RECORDS
+# DASHBOARD SECTION
 # ---------------------------------------------------------------
 if page == "Dashboard":
     st.header("Dashboard Overview")
@@ -267,15 +246,6 @@ if page == "Dashboard":
     trends_df = compute_monthly_trends()
     fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
     st.plotly_chart(fig_trends, use_container_width=True)
-    st.markdown("<br>" * 1, unsafe_allow_html=True)
-    st.subheader("Payment Records")
-    combined_payments = compute_combined_payments()
-    if not combined_payments.empty:
-        st.dataframe(combined_payments)
-        fig_pay = px.bar(combined_payments, x="Date", y="Amount", color="Type", title="Payment Transactions Over Time")
-        st.plotly_chart(fig_pay, use_container_width=True)
-    else:
-        st.info("No payment records available.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
@@ -331,29 +301,15 @@ elif page == "Balance Sheet":
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
-# HOSTELITE MANAGEMENT SECTION
+# HOSTELITE MANAGEMENT PAYMENTS AND DUES SECTION
 # ---------------------------------------------------------------
-elif page == "Hostelite Management":
-    st.header("Hostelite Management")
-    st.subheader("Add/Update Hostelite Details")
-    with st.form("hostelite_form", clear_on_submit=True):
-        name = st.text_input("Hostelite Name")
-        room_no = st.text_input("Allocated Room Number")
-        rent = st.number_input("Required Rent (PKR)", min_value=0.0, format="%.2f")
-        paid = st.number_input("Amount Paid (PKR)", min_value=0.0, format="%.2f")
-        if st.form_submit_button("Add/Update Hostelite"):
-            add_hostelite(name, room_no, rent)
-            st.session_state.hostelites[name]["Paid"] = paid
-            st.success(f"Hostelite {name} added/updated successfully!")
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.subheader("Current Hostelite Records")
-    if st.session_state.hostelites:
-        hostelite_df = pd.DataFrame.from_dict(st.session_state.hostelites, orient='index').reset_index().rename(columns={'index': 'Hostelite'})
-        hostelite_df["Amount Due"] = hostelite_df.apply(lambda row: max(row["Rent"] - row["Paid"], 0), axis=1)
-        hostelite_df["Amount Overpaid"] = hostelite_df.apply(lambda row: max(row["Paid"] - row["Rent"], 0), axis=1)
-        st.dataframe(hostelite_df[["Hostelite", "Room", "Rent", "Paid", "Amount Due", "Amount Overpaid"]])
+elif page == "Hostel Management Payments and Dues":
+    st.header("Hostel Management Payments and Dues")
+    payment_details_df = compute_payment_details()
+    if not payment_details_df.empty:
+        st.dataframe(payment_details_df)
     else:
-        st.info("No hostelite records available.")
+        st.info("No hostelite payment data available.")
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
@@ -374,11 +330,11 @@ elif page == "Staff Payments and Dues":
     with st.form("staff_payment_form", clear_on_submit=True):
         pay_date = st.date_input("Payment Date", datetime.date.today())
         staff_member = st.selectbox("Select Staff", list(st.session_state.staff.keys()) if st.session_state.staff else ["No Staff Available"])
-        staff_amount = st.number_input("Payment Amount (PKR)", min_value=0.0, format="%.2f")
+        pay_amount = st.number_input("Payment Amount (PKR)", min_value=0.0, format="%.2f")
         pay_method = st.selectbox("Payment Method", ["Cash", "Online Transaction", "Bank Transfer"])
         if st.form_submit_button("Record Staff Payment") and staff_member != "No Staff Available":
-            add_staff_payment(pay_date, staff_member, staff_amount, pay_method)
-            st.success(f"Payment of PKR {staff_amount} recorded for {staff_member}!")
+            add_staff_payment(pay_date, staff_member, pay_amount, pay_method)
+            st.success(f"Payment of PKR {pay_amount} recorded for {staff_member}!")
     st.markdown("<hr>", unsafe_allow_html=True)
     st.subheader("Staff Payment Details")
     staff_payment_df = compute_staff_payments()
@@ -497,6 +453,11 @@ st.write("")
 # 8. Integration with payment gateways.
 # 9. Dynamic notifications for overdue payments and tasks.
 # 10. Enhanced interactive data visualization.
+#
+#
+#
+#
+#
 #
 #
 #
