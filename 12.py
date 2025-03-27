@@ -303,6 +303,14 @@ elif page == "Balance Sheet":
 # ---------------------------------------------------------------
 # HOSTELITE MANAGEMENT PAYMENTS AND DUES SECTION
 # ---------------------------------------------------------------
+elif page == "Hostel Management Payments and Dues":
+    st.header("Hostel Management Payments and Dues")
+    payment_details_df = compute_payment_details()
+    if not payment_details_df.empty:
+        st.dataframe(payment_details_df)
+    else:
+        st.info("No hostelite payment data available.")
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------
