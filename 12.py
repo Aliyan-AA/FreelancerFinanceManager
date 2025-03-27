@@ -466,7 +466,20 @@ def process_payment(hostelite, amount, payment_date, payment_method):
 # DASHBOARD SECTION
 # ---------------------------------------------------------------
 
+    if page == "Dashboard":
+    st.header("Dashboard Overview")
+    total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
+    total_exp = sum([entry["Amount"] for entry in st.session_state.expenses])
+    overall_balance = total_rev - total_exp
     
+    # Quick Stats
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"<div class='metric-box'><h4>Total Revenue</h4><h2>PKR {total_rev:,.2f}</h2></div>", unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"<div class='metric-box'><h4>Total Expenses</h4><h2>PKR {total_exp:,.2f}</h2></div>", unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"<div class='metric-box'><h4>Overall Balance</h4><h2>PKR {overall_balance:,.2f}</h2></div>", unsafe_allow_html=True)
     # Hostelite Payment Section
     st.markdown("<hr>", unsafe_allow_html=True)
     st.subheader("Quick Payment Processing")
