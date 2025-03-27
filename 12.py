@@ -229,6 +229,24 @@ st.markdown("<p class='main-title'>Hostel Financial Manager</p>", unsafe_allow_h
 # ---------------------------------------------------------------
 # DASHBOARD SECTION
 # ---------------------------------------------------------------
+if page == "Dashboard":
+    st.header("Dashboard Overview")
+    total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
+    total_exp = sum([entry["Amount"] for entry in st.session_state.expenses])
+    overall_balance = total_rev - total_exp
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"<div class='metric-box'><h4>Total Revenue</h4><h2>PKR {total_rev:,.2f}</h2></div>", unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"<div class='metric-box'><h4>Total Expenses</h4><h2>PKR {total_exp:,.2f}</h2></div>", unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"<div class='metric-box'><h4>Overall Balance</h4><h2>PKR {overall_balance:,.2f}</h2></div>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Monthly Trends")
+    trends_df = compute_monthly_trends()
+    fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
+    st.plotly_chart(fig_trends, use_container_width=True)
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
 # DATA ENTRY SECTION (Revenue & Expense)
@@ -447,16 +465,8 @@ def process_payment(hostelite, amount, payment_date, payment_method):
 # ---------------------------------------------------------------
 # DASHBOARD SECTION
 # ---------------------------------------------------------------
-
-
-
-
-
-# ---------------------------------------------------------------
-# DASHBOARD SECTION
-# ---------------------------------------------------------------
 if page == "Dashboard":
-    st.markdown("<h2 class='section-header'>Dashboard Overview</h2>", unsafe_allow_html=True)
+    st.header("Dashboard Overview")
     total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
     total_exp = sum([entry["Amount"] for entry in st.session_state.expenses])
     overall_balance = total_rev - total_exp
@@ -464,36 +474,18 @@ if page == "Dashboard":
     # Quick Stats
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(f"""
-            <div class='metric-box'>
-                <h4>Total Revenue</h4>
-                <h2>PKR {total_rev:,.2f}</h2>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-box'><h4>Total Revenue</h4><h2>PKR {total_rev:,.2f}</h2></div>", unsafe_allow_html=True)
     with col2:
-        st.markdown(f"""
-            <div class='metric-box'>
-                <h4>Total Expenses</h4>
-                <h2>PKR {total_exp:,.2f}</h2>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-box'><h4>Total Expenses</h4><h2>PKR {total_exp:,.2f}</h2></div>", unsafe_allow_html=True)
     with col3:
-        st.markdown(f"""
-            <div class='metric-box'>
-                <h4>Overall Balance</h4>
-                <h2>PKR {overall_balance:,.2f}</h2>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-box'><h4>Overall Balance</h4><h2>PKR {overall_balance:,.2f}</h2></div>", unsafe_allow_html=True)
     
     # Hostelite Payment Section
-    st.markdown("<h2 class='section-header'>Quick Payment Processing</h2>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Quick Payment Processing")
     payment_col1, payment_col2 = st.columns(2)
     
     with payment_col1:
-        st.markdown("""
-            <div class='info-box'>
-                <h4>Process Payment</h4>
-        """, unsafe_allow_html=True)
         hostelite = st.selectbox("Select Hostelite", list(st.session_state.hostelites.keys()) if st.session_state.hostelites else ["No hostelites"])
         if hostelite != "No hostelites":
             amount = st.number_input("Payment Amount", min_value=0.0, value=float(st.session_state.hostelites[hostelite]["Rent"]))
@@ -504,13 +496,12 @@ if page == "Dashboard":
                     st.success(f"Payment of PKR {amount:,.2f} processed successfully for {hostelite}")
                 else:
                     st.error("Failed to process payment")
-        st.markdown("</div>", unsafe_allow_html=True)
     
     with payment_col2:
         if hostelite != "No hostelites":
             details = st.session_state.hostelites[hostelite]
             st.markdown(f"""
-                <div class='info-box'>
+                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px;'>
                     <h4>Payment Details</h4>
                     <p><strong>Room:</strong> {details['Room']}</p>
                     <p><strong>Monthly Rent:</strong> PKR {details['Rent']:,.2f}</p>
@@ -520,7 +511,8 @@ if page == "Dashboard":
             """, unsafe_allow_html=True)
     
     # Hostelite List
-    st.markdown("<h2 class='section-header'>Current Hostelites</h2>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Current Hostelites")
     hostelite_df = get_hostelite_list()
     if not hostelite_df.empty:
         st.dataframe(hostelite_df, use_container_width=True)
@@ -528,29 +520,14 @@ if page == "Dashboard":
         st.info("No hostelites registered yet")
     
     # Monthly Trends
-    st.markdown("<h2 class='section-header'>Monthly Trends</h2>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Monthly Trends")
     trends_df = compute_monthly_trends()
-    fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], 
-                        markers=True, 
-                        title="Monthly Revenue vs Expenses",
-                        template="plotly_white",
-                        color_discrete_sequence=['#2ecc71', '#e74c3c'])
-    fig_trends.update_layout(
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#2c3e50'),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        )
-    )
+    fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
     st.plotly_chart(fig_trends, use_container_width=True)
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 
-# Remove the duplicate Dashboard section and everything after it until the Hostelite Management section
 # ---------------------------------------------------------------
 # HOSTELITE MANAGEMENT SECTION
 # ---------------------------------------------------------------
@@ -606,6 +583,7 @@ elif page == "Hostelite Management":
             """, unsafe_allow_html=True)
     else:
         st.info("No hostelites registered yet")
+
 
 
 
