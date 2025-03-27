@@ -468,6 +468,12 @@ def process_payment(hostelite, amount, payment_date, payment_method):
 
 
     
+   if page == "Dashboard":
+    st.header("Dashboard Overview")
+    total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
+    total_exp = sum([entry["Amount"] for entry in st.session_state.expenses])
+    overall_balance = total_rev - total_exp
+    
     # Quick Stats
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -476,6 +482,7 @@ def process_payment(hostelite, amount, payment_date, payment_method):
         st.markdown(f"<div class='metric-box'><h4>Total Expenses</h4><h2>PKR {total_exp:,.2f}</h2></div>", unsafe_allow_html=True)
     with col3:
         st.markdown(f"<div class='metric-box'><h4>Overall Balance</h4><h2>PKR {overall_balance:,.2f}</h2></div>", unsafe_allow_html=True)
+    
     # Hostelite Payment Section
     st.markdown("<hr>", unsafe_allow_html=True)
     st.subheader("Quick Payment Processing")
@@ -515,7 +522,14 @@ def process_payment(hostelite, amount, payment_date, payment_method):
     else:
         st.info("No hostelites registered yet")
     
-   
+    # Monthly Trends
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Monthly Trends")
+    trends_df = compute_monthly_trends()
+    fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
+    st.plotly_chart(fig_trends, use_container_width=True)
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
+
 
 
 # ---------------------------------------------------------------
