@@ -22,20 +22,7 @@ from sklearn.linear_model import LinearRegression
 # ---------------------------------------------------------------
 # PAGE CONFIGURATION & CUSTOM STYLING
 # ---------------------------------------------------------------
-st.set_page_config(page_title="Hostel Financial Manager", layout="wide")
-st.markdown("""
-    <style>
-        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .main-title { font-size: 42px; font-weight: 700; color: #003366; text-align: center; margin-bottom: 20px; }
-        .sidebar .sidebar-content { background-color: #004b8d; color: white; }
-        .metric-box { background: #fff; padding: 20px; border-radius: 10px; text-align: center;
-                      box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .stButton>button { background-color: #0051a2; color: white; border-radius: 8px;
-                           padding: 8px 16px; font-size: 16px; border: none; }
-        .stTextInput label, .stNumberInput label, .stDateInput label { font-weight: bold; color: #003366; }
-        .dataframe th, .dataframe td { padding: 8px; }
-    </style>
-""", unsafe_allow_html=True)
+
 
 # ---------------------------------------------------------------
 # INITIALIZE SESSION STATE DATA STRUCTURES
