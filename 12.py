@@ -519,13 +519,7 @@ if page == "Dashboard":
     else:
         st.info("No hostelites registered yet")
     
-    # Monthly Trends
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.subheader("Monthly Trends")
-    trends_df = compute_monthly_trends()
-    fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
-    st.plotly_chart(fig_trends, use_container_width=True)
-    st.markdown("<br>" * 2, unsafe_allow_html=True)
+   
 
 
 # ---------------------------------------------------------------
