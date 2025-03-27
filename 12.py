@@ -466,11 +466,7 @@ def process_payment(hostelite, amount, payment_date, payment_method):
 # DASHBOARD SECTION
 # ---------------------------------------------------------------
 
-    if page == "Dashboard":
-    st.header("Dashboard Overview")
-    total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
-    total_exp = sum([entry["Amount"] for entry in st.session_state.expenses])
-    overall_balance = total_rev - total_exp
+
     
     # Quick Stats
     col1, col2, col3 = st.columns(3)
