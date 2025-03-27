@@ -465,10 +465,7 @@ def process_payment(hostelite, amount, payment_date, payment_method):
 # ---------------------------------------------------------------
 # DASHBOARD SECTION
 # ---------------------------------------------------------------
-
-
-    
-   if page == "Dashboard":
+if page == "Dashboard":
     st.header("Dashboard Overview")
     total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
     total_exp = sum([entry["Amount"] for entry in st.session_state.expenses])
@@ -529,7 +526,6 @@ def process_payment(hostelite, amount, payment_date, payment_method):
     fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
     st.plotly_chart(fig_trends, use_container_width=True)
     st.markdown("<br>" * 2, unsafe_allow_html=True)
-
 
 
 # ---------------------------------------------------------------
