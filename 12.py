@@ -439,7 +439,7 @@ st.sidebar.write("")
 st.write("Placeholder: Future features and enhancements can be implemented here. (This area is reserved for expansion.)")
 st.write("")
 
-// ... existing code ...
+
 def get_hostelite_list():
     data = []
     for name, details in st.session_state.hostelites.items():
