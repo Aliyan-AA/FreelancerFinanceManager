@@ -459,7 +459,7 @@ def process_payment(hostelite, amount, payment_date, payment_method):
         return True
     return False
 
-// ... existing code ...
+
 
 # ---------------------------------------------------------------
 # DASHBOARD SECTION
@@ -526,7 +526,7 @@ if page == "Dashboard":
     st.plotly_chart(fig_trends, use_container_width=True)
     st.markdown("<br>" * 2, unsafe_allow_html=True)
 
-// ... existing code ...
+
 
 
     
