@@ -303,14 +303,7 @@ elif page == "Balance Sheet":
 # ---------------------------------------------------------------
 # HOSTELITE MANAGEMENT PAYMENTS AND DUES SECTION
 # ---------------------------------------------------------------
-elif page == "Hostel Management Payments and Dues":
-    st.header("Hostel Management Payments and Dues")
-    payment_details_df = compute_payment_details()
-    if not payment_details_df.empty:
-        st.dataframe(payment_details_df)
-    else:
-        st.info("No hostelite payment data available.")
-    st.markdown("<br>" * 2, unsafe_allow_html=True)
+
 
 # ---------------------------------------------------------------
 # STAFF PAYMENTS AND DUES SECTION
@@ -525,6 +518,65 @@ if page == "Dashboard":
     fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
     st.plotly_chart(fig_trends, use_container_width=True)
     st.markdown("<br>" * 2, unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------
+# HOSTELITE MANAGEMENT SECTION
+# ---------------------------------------------------------------
+elif page == "Hostelite Management":
+    st.header("Hostelite Management")
+    
+    # Add New Hostelite Form
+    st.subheader("Add New Hostelite")
+    with st.form("hostelite_form", clear_on_submit=True):
+        hostelite_name = st.text_input("Hostelite Name")
+        room_number = st.number_input("Room Number", min_value=1)
+        monthly_rent = st.number_input("Monthly Rent (PKR)", min_value=0.0, format="%.2f")
+        if st.form_submit_button("Add Hostelite"):
+            if hostelite_name and room_number and monthly_rent:
+                add_hostelite(hostelite_name, room_number, monthly_rent)
+                st.success(f"Hostelite {hostelite_name} added successfully!")
+            else:
+                st.error("Please fill in all fields")
+    
+    # Display Hostelite List
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Current Hostelites")
+    hostelite_df = get_hostelite_list()
+    if not hostelite_df.empty:
+        st.dataframe(hostelite_df, use_container_width=True)
+        
+        # Add payment processing section
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.subheader("Process Payment")
+        payment_col1, payment_col2 = st.columns(2)
+        
+        with payment_col1:
+            selected_hostelite = st.selectbox("Select Hostelite", list(st.session_state.hostelites.keys()))
+            amount = st.number_input("Payment Amount", min_value=0.0, value=float(st.session_state.hostelites[selected_hostelite]["Rent"]))
+            payment_date = st.date_input("Payment Date")
+            payment_method = st.selectbox("Payment Method", ["Cash", "Bank Transfer", "Mobile Wallet", "Other"])
+            if st.button("Process Payment"):
+                if process_payment(selected_hostelite, amount, payment_date, payment_method):
+                    st.success(f"Payment of PKR {amount:,.2f} processed successfully for {selected_hostelite}")
+                else:
+                    st.error("Failed to process payment")
+        
+        with payment_col2:
+            details = st.session_state.hostelites[selected_hostelite]
+            st.markdown(f"""
+                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px;'>
+                    <h4>Payment Details</h4>
+                    <p><strong>Room:</strong> {details['Room']}</p>
+                    <p><strong>Monthly Rent:</strong> PKR {details['Rent']:,.2f}</p>
+                    <p><strong>Amount Paid:</strong> PKR {details['Paid']:,.2f}</p>
+                    <p><strong>Amount Due:</strong> PKR {max(details['Rent'] - details['Paid'], 0):,.2f}</p>
+                </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("No hostelites registered yet")
+
+
 
 
 
