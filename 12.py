@@ -229,7 +229,24 @@ st.markdown("<p class='main-title'>Hostel Financial Manager</p>", unsafe_allow_h
 # ---------------------------------------------------------------
 # DASHBOARD SECTION
 # ---------------------------------------------------------------
-
+if page == "Dashboard":
+    st.header("Dashboard Overview")
+    total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
+    total_exp = sum([entry["Amount"] for entry in st.session_state.expenses])
+    overall_balance = total_rev - total_exp
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"<div class='metric-box'><h4>Total Revenue</h4><h2>PKR {total_rev:,.2f}</h2></div>", unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"<div class='metric-box'><h4>Total Expenses</h4><h2>PKR {total_exp:,.2f}</h2></div>", unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"<div class='metric-box'><h4>Overall Balance</h4><h2>PKR {overall_balance:,.2f}</h2></div>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.subheader("Monthly Trends")
+    trends_df = compute_monthly_trends()
+    fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
+    st.plotly_chart(fig_trends, use_container_width=True)
+    st.markdown("<br>" * 2, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
 # DATA ENTRY SECTION (Revenue & Expense)
