@@ -698,7 +698,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-// ... existing code ...
+
 
 # ---------------------------------------------------------------
 # HEADER
@@ -806,7 +806,7 @@ if page == "Dashboard":
     )
     st.plotly_chart(fig_trends, use_container_width=True)
 
-// ... existing code ...
+
 
 
     
