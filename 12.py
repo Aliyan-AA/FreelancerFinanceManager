@@ -22,7 +22,20 @@ from sklearn.linear_model import LinearRegression
 # ---------------------------------------------------------------
 # PAGE CONFIGURATION & CUSTOM STYLING
 # ---------------------------------------------------------------
-
+st.set_page_config(page_title="Hostel Financial Manager", layout="wide")
+st.markdown("""
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .main-title { font-size: 42px; font-weight: 700; color: #003366; text-align: center; margin-bottom: 20px; }
+        .sidebar .sidebar-content { background-color: #004b8d; color: white; }
+        .metric-box { background: #fff; padding: 20px; border-radius: 10px; text-align: center;
+                      box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .stButton>button { background-color: #0051a2; color: white; border-radius: 8px;
+                           padding: 8px 16px; font-size: 16px; border: none; }
+        .stTextInput label, .stNumberInput label, .stDateInput label { font-weight: bold; color: #003366; }
+        .dataframe th, .dataframe td { padding: 8px; }
+    </style>
+""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------
 # INITIALIZE SESSION STATE DATA STRUCTURES
@@ -216,24 +229,7 @@ st.markdown("<p class='main-title'>Hostel Financial Manager</p>", unsafe_allow_h
 # ---------------------------------------------------------------
 # DASHBOARD SECTION
 # ---------------------------------------------------------------
-if page == "Dashboard":
-    st.header("Dashboard Overview")
-    total_rev = sum([entry["Amount"] for entry in st.session_state.revenue])
-    total_exp = sum([entry["Amount"] for entry in st.session_state.expenses])
-    overall_balance = total_rev - total_exp
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown(f"<div class='metric-box'><h4>Total Revenue</h4><h2>PKR {total_rev:,.2f}</h2></div>", unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"<div class='metric-box'><h4>Total Expenses</h4><h2>PKR {total_exp:,.2f}</h2></div>", unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"<div class='metric-box'><h4>Overall Balance</h4><h2>PKR {overall_balance:,.2f}</h2></div>", unsafe_allow_html=True)
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.subheader("Monthly Trends")
-    trends_df = compute_monthly_trends()
-    fig_trends = px.line(trends_df, x="Month", y=["Revenue", "Expenses"], markers=True, title="Monthly Revenue vs Expenses")
-    st.plotly_chart(fig_trends, use_container_width=True)
-    st.markdown("<br>" * 2, unsafe_allow_html=True)
+
 
 
 # ---------------------------------------------------------------
